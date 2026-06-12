@@ -1,6 +1,6 @@
 from . import _main as main
-from . import _fig01 as fig01
-from . import _fig02 as fig02
-from . import _fig03 as fig03
-from . import _fig04 as fig04
-from . import _fig05 as fig05
+from ._fig01 import main as fig01
+from ._fig02 import main as fig02
+from ._fig03 import main as fig03
+from ._fig04 import main as fig04
+from ._fig05 import main as fig05

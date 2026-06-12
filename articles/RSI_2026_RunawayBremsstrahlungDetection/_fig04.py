@@ -54,6 +54,11 @@ _CASES = {
 
 def main(
     d2cross_phi=None,
+    # dist
+    Te_eV=1e3 * np.linspace(0.1, 2.5, 25),
+    jp_fraction_re=np.linspace(0., 1., 21),
+    # emiss
+    E_ph_eV=None,
     # cases
     cases=None,
     # plot
@@ -86,8 +91,8 @@ def main(
         for kk, vv in _DDIST.items()
         if kk not in ['E_eV', 'theta']
     }
-    ddist['Te_eV'] = 1e3 * np.linspace(0.1, 2.5, 25)[:, None]
-    ddist['jp_fraction_re'] = np.linspace(0., 1., 21)[None, :]
+    ddist['Te_eV'] = Te_eV[:, None]
+    ddist['jp_fraction_re'] = jp_fraction_re[None, :]
 
     # --------------
     # integrated cross-section
@@ -99,7 +104,7 @@ def main(
         # tabulated d2cross_phi
         d2cross_phi=d2cross_phi,
         # d2cross_phi computation
-        E_ph_eV=None,
+        E_ph_eV=E_ph_eV,
         E_e0_eV=None,
         E_e0_eV_npts=None,
         theta_e0_vsB_npts=None,
