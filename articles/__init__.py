@@ -1,1 +1,1 @@
-from . import 2026_RSI_RunawayBremsstrahlungDetection
+from . import RSI_2026_RunawayBremsstrahlungDetection
