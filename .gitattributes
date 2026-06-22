@@ -1,0 +1,4 @@
+articles/RSI_2026_RunawayBremsstrahlungDetection/inputs/d2cross_Ee0100eV-10MeV-80log_Eph100eV-10MeV-81log_ntheta61_EH.npz filter=lfs diff=lfs merge=lfs -text
+articles/RSI_2026_RunawayBremsstrahlungDetection/inputs/d2cross_Ee01eV-100MeV-80log_Eph1eV-100MeV-81log_ntheta61_EH.npz filter=lfs diff=lfs merge=lfs -text
+articles/RSI_2026_RunawayBremsstrahlungDetection/inputs/d2cross_phi_Ee01eV-100MeV-80log_Eph1eV-100MeV-81log_nthetaph61_nthetae060_EH.npz filter=lfs diff=lfs merge=lfs -text
+articles/RSI_2026_RunawayBremsstrahlungDetection/inputs/responsivities.npz filter=lfs diff=lfs merge=lfs -text

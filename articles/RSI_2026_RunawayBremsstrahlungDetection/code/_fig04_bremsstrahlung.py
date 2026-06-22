@@ -1,0 +1,469 @@
+import os
+
+
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+import matplotlib.transforms as transforms
+import datastock as ds
+import tofu as tf
+
+
+from ._fig02 import _DDIST
+
+
+tfphysemis = tf.physics_tools.electrons.emission
+
+
+# #####################################################
+# #####################################################
+#       DEFAULTS
+# #####################################################
+
+
+_PATH_HERE = os.path.dirname(__file__)
+_PATH_INPUTS = os.path.join(os.path.dirname(_PATH_HERE), 'inputs')
+_PATH_SAVE = os.path.join(os.path.dirname(_PATH_HERE), 'figures')
+
+
+_PFE_D2CROSS_PHI = os.path.join(
+    _PATH_INPUTS,
+    'd2cross_phi_Ee01eV-100MeV-80log_Eph1eV-100MeV-81log_nthetaph61_nthetae060_EH.npz',
+)
+
+
+_CASES = {
+    'case': {
+        '0': {'Te': 0.1e3, 'jp_frac': 0.9, 'color': 'r', 'hatch': '/'},
+        '1': {'Te': 2.0e3, 'jp_frac': 0.1, 'color': 'b', 'hatch': "-"},
+    },
+    'theta_ph_vsB': {
+        'val': np.r_[0, 0.5, 1]*np.pi,
+        'ls': ['-', '--', ':'],
+    },
+    'E_ph_eV': {
+        'val': np.r_[0.1, 2, 20]*1e3,
+        'ls': ['-', '-', '-'],
+    },
+}
+
+
+# #####################################################
+# #####################################################
+#       main
+# #####################################################
+
+
+def main(
+    d2cross_phi=None,
+    # dist
+    ne_m3=None,
+    Te_eV=1e3 * np.linspace(0.1, 2.5, 25),
+    jp_fraction_re=np.linspace(0., 1., 21),
+    # emiss
+    E_ph_eV=None,
+    # cases
+    cases=None,
+    # plot
+    figsize=(15, 8),
+    fontsize=14,
+    # save
+    path_save=None,
+    pfe_save=None,
+    # unused
+    **kwdargs,
+):
+    """ Plot a selection of Maxwellian and RE free-free spectra
+
+    Includes selected angular amissivity
+    Includes a 2d contour plot of photon energy threshold for RE dominance
+
+    """
+
+    # ------------
+    # d2cross_phi
+    # ------------
+
+    if d2cross_phi is None:
+        d2cross_phi = _PFE_D2CROSS_PHI
+
+    # ------------
+    # ddist
+    # ------------
+
+    ddist = locals()
+    ddist = {
+        kk: vv if ddist.get(kk) is None else ddist[kk]
+        for kk, vv in _DDIST.items()
+        if kk not in ['E_eV', 'theta']
+    }
+    ddist['Te_eV'] = Te_eV[:, None]
+    ddist['jp_fraction_re'] = jp_fraction_re[None, :]
+    if ne_m3 is not None:
+        ddist['ne_m3'] = ne_m3
+
+    # --------------
+    # integrated cross-section
+    # --------------
+
+    demiss, ddist, d2cross_phi = tfphysemis.get_xray_thin_integ_dist(
+        # ----------------
+        # cross-section
+        # tabulated d2cross_phi
+        d2cross_phi=d2cross_phi,
+        # d2cross_phi computation
+        E_ph_eV=E_ph_eV,
+        E_e0_eV=None,
+        E_e0_eV_npts=None,
+        theta_e0_vsB_npts=None,
+        phi_e0_vsB_npts=None,
+        theta_ph_vsB=None,
+        # inputs
+        Z=None,
+        # hypergeometric parameter
+        ninf=None,
+        source=None,
+        # integration parameters
+        nthetae=None,
+        ndphi=None,
+        # output customization
+        version_cross=None,
+        # save / load
+        save_d2cross_phi=False,
+        # ---------------------
+        # optional responsivity
+        dresponsivity=None,
+        plot_responsivity_integration=None,
+        # -----------
+        # verb
+        debug=False,
+        verb=True,
+        # ----------------
+        # electron distribution
+        **ddist,
+    )
+
+    units = demiss['emiss']['RE']['emiss']['units']
+    ne = np.unique(ddist['plasma']['ne_m3']['data'])[0]
+    jp = np.unique(ddist['plasma']['jp_Am2']['data'])[0]
+
+    tit = (
+        r"$n_e$" + f" = {ne:1.0e} /m3\n"
+        + r"$j_{P,RE}$" + f" = {jp*1e-6:2.1f} MA/m2"
+    )
+
+    # --------------
+    # cases
+    # --------------
+
+    if cases is None:
+        cases = _CASES
+
+    # --------------
+    # Elim
+    # --------------
+
+    shape = ddist['plasma']['Te_eV']['data'].shape
+    Elim = np.full(shape, np.nan)
+    theta_Elim = 0
+    for ii, ind in enumerate(np.ndindex(shape)):
+
+        sli_emiss = ind + (slice(None), 0)
+        emiss_RE = demiss['emiss']['RE']['emiss']['data'][sli_emiss]
+        emiss_max = demiss['emiss']['maxwell']['emiss']['data'][sli_emiss]
+
+        ilim = (emiss_RE > emiss_max)
+        if np.any(ilim):
+            Elim[ind] = np.min(demiss['E_ph_eV']['data'][ilim])
+
+    # --------------
+    # prepare axes
+    # --------------
+
+    dmargin = {
+        'left': 0.06, 'right': 0.98,
+        'bottom': 0.06, 'top': 0.95,
+        'wspace': 0.25, 'hspace': 0.30,
+    }
+
+    fig = plt.figure(figsize=figsize)
+
+    nE = len(cases['E_ph_eV']['val'])
+    gs = gridspec.GridSpec(ncols=nE + 2, nrows=3, **dmargin)
+    dax = {}
+
+    # ----------------
+    # ax - spectra
+    # ----------------
+
+    ax = fig.add_subplot(gs[0, :nE], aspect='auto')
+    ax.set_xlabel(
+        r"$E_{ph}$" + ' (keV)',
+        fontsize=fontsize,
+        fontweight='bold',
+    )
+    ax.set_ylabel(
+        r"$\epsilon$" + f' ({units})',
+        fontsize=fontsize,
+        fontweight='bold',
+    )
+    dax['spectra'] = ax
+
+    # ----------------
+    # ax - theta - lin
+    # ----------------
+
+    ax0 = None
+    for ii in range(nE):
+        ax = fig.add_subplot(
+            gs[1, ii],
+            aspect='auto',
+            sharex=ax0,
+            sharey=ax0,
+        )
+        ax.set_xlabel(
+            r'$\theta_{ph,B}$' + ' (deg)',
+            fontsize=fontsize,
+            fontweight='bold',
+        )
+        if ii == 0:
+            ax.set_ylabel(
+                'emiss (norm.)',
+                fontsize=fontsize,
+                fontweight='bold',
+            )
+            ax.set_xlim(0, 180)
+            ax.set_ylim(0, 1)
+            ax0 = ax
+
+        dax[f'theta_{ii}_lin'] = ax
+
+    # ----------------
+    # ax - theta - log
+    # ----------------
+
+    ax0 = None
+    for ii in range(nE):
+        ax = fig.add_subplot(
+            gs[2, ii],
+            aspect='auto',
+            sharex=ax0,
+            sharey=ax0,
+        )
+        ax.set_xlabel(
+            r'$\theta_{ph,B}$' + ' (deg)',
+            fontsize=fontsize,
+            fontweight='bold',
+        )
+        if ii == 0:
+            ax.set_ylabel(
+                f'{units}',
+                fontsize=fontsize,
+                fontweight='bold',
+            )
+            ax.set_xlim(0, 180)
+            ax.set_ylim(0, 1)
+            ax0 = ax
+
+        dax[f'theta_{ii}_log'] = ax
+
+    # ----------------
+    # ax - Elim
+    # ----------------
+
+    ax = fig.add_subplot(gs[:, nE:], aspect='auto')
+    ax.set_xlabel('Te (keV)', fontsize=fontsize, fontweight='bold')
+    ax.set_ylabel('jp_frac', fontsize=fontsize, fontweight='bold')
+
+    ax.set_title(
+        tit,
+        fontsize=fontsize,
+        fontweight='bold',
+    )
+
+    dax['Elim'] = ax
+
+    dax = ds._generic_check._check_dax(dax)
+
+    # --------------
+    # plot - cases
+    # --------------
+
+    Teu = np.unique(ddist['plasma']['Te_eV']['data'])
+    jp_fracu = np.unique(ddist['plasma']['jp_fraction_re']['data'])
+
+    # loop on cases
+    for i0, (k0, v0) in enumerate(cases['case'].items()):
+
+        # slice
+        Te = Teu[np.argmin(np.abs(Teu - v0['Te']))]
+        jpf = jp_fracu[np.argmin(np.abs(jp_fracu - v0['jp_frac']))]
+        ic = (
+            (ddist['plasma']['jp_fraction_re']['data'] == jpf)
+            & (ddist['plasma']['Te_eV']['data'] == Te)
+        )
+        assert ic.sum() == 1
+        ic = tuple([cc[0] for cc in ic.nonzero()])
+
+        # --------
+        # spectra
+
+        kax = 'spectra'
+        if dax.get(kax) is not None:
+            ax = dax[kax]['handle']
+
+            sli = ic + (slice(None), slice(None))
+            for kdist in demiss['emiss'].keys():
+                emiss_E = demiss['emiss'][kdist]['emiss']['data'][sli]
+
+                # plot
+                ax.fill_between(
+                    demiss['E_ph_eV']['data']*1e-3,
+                    np.nanmin(emiss_E, axis=-1),
+                    np.nanmax(emiss_E, axis=-1),
+                    hatch=v0['hatch'],
+                    facecolor=v0['color'],
+                    alpha=0.5,
+                    label=f'{kdist}_{ic}',
+                )
+
+            # vlines
+            for i1, cc in enumerate(cases['E_ph_eV']['val']):
+                ax.axvline(cc*1e-3, c='k', ls='--', lw=1)
+
+            # Elim
+            iE = np.argmin(np.abs(demiss['E_ph_eV']['data'] - Elim[ic]))
+            ax.plot(
+                np.r_[Elim[ic], Elim[ic]] * 1e-3,
+                [emiss_E[iE, 0], 1e16],
+                color=v0['color'],
+                ls='--',
+                lw=1,
+            )
+
+            # text
+            trans = transforms.blended_transform_factory(
+                ax.transData,
+                ax.transAxes,
+            )
+            ax.text(
+                Elim[ic] * 1e-3,
+                1,
+                r"$E_{ph,lim}$" + f" = {Elim[ic] * 1e-3:2.1f} keV",
+                horizontalalignment='center',
+                verticalalignment='bottom',
+                fontsize=fontsize,
+                fontweight='bold',
+                color=v0['color'],
+                transform=trans,
+            )
+
+            ax.set_ylim(1e0, 1e16)
+            ax.set_xlim(1e-2, 2e4)
+
+        # --------
+        # theta
+
+        for i1, cc in enumerate(cases['E_ph_eV']['val']):
+
+            kax = f'theta_{i1}_lin'
+            if dax.get(kax) is not None:
+                ax = dax[kax]['handle']
+
+                iE = np.argmin(np.abs(demiss['E_ph_eV']['data'] - cc))
+                sli = ic + (iE, slice(None))
+
+                for kdist in demiss['emiss'].keys():
+                    emiss_theta = demiss['emiss'][kdist]['emiss']['data'][sli]
+
+                    # plot
+                    ax.plot(
+                        demiss['theta_ph_vsB']['data']*180/np.pi,
+                        emiss_theta / emiss_theta.max(),
+                        ls=cases['E_ph_eV']['ls'][i1],
+                        lw=1 if kdist == 'RE' else 2,
+                        marker='None',
+                        color=v0['color'],
+                        label=f'{kdist}_{ic}_{cc*1e-3:3.1f}keV',
+                    )
+
+                # deco
+                ax.set_title(
+                    r"$E_{ph,B}$" + f" = {cc*1e-3:3.1f} keV",
+                    fontsize=fontsize,
+                    fontweight='bold',
+                )
+
+            # ---------
+            # theta - log
+
+            kax = f'theta_{i1}_log'
+            if dax.get(kax) is not None:
+                ax = dax[kax]['handle']
+
+                iE = np.argmin(np.abs(demiss['E_ph_eV']['data'] - cc))
+                sli = ic + (iE, slice(None))
+
+                for kdist in demiss['emiss'].keys():
+                    emiss_theta = demiss['emiss'][kdist]['emiss']['data'][sli]
+
+                    # plot
+                    ax.semilogy(
+                        demiss['theta_ph_vsB']['data']*180/np.pi,
+                        emiss_theta,
+                        ls=cases['E_ph_eV']['ls'][i1],
+                        lw=1 if kdist == 'RE' else 2,
+                        marker='None',
+                        color=v0['color'],
+                        label=f'{kdist}_{ic}_{cc*1e-3:3.1f}keV',
+                    )
+
+    # --------------
+    # plot - Elim
+    # --------------
+
+    kax = 'Elim'
+    if dax.get(kax) is not None:
+        ax = dax[kax]['handle']
+
+        cs = ax.contour(
+            ddist['plasma']['Te_eV']['data'] * 1e-3,
+            ddist['plasma']['jp_fraction_re']['data'],
+            Elim * 1e-3,
+            cmap=plt.cm.viridis,
+            levels=np.r_[1, 2, 5, 7.5, 10, 15],
+            vmin=0.1,
+            vmax=20,
+        )
+
+        # cases
+        for i0, (k0, v0) in enumerate(cases['case'].items()):
+            ax.plot(
+                v0['Te']*1e-3,
+                v0['jp_frac'],
+                marker='*',
+                markersize=8,
+                markerfacecolor=v0['color'],
+                color=v0['color'],
+            )
+
+        ax.clabel(cs, cs.levels, fontsize=12)
+
+        ax.set_xlim(0, ddist['plasma']['Te_eV']['data'].max()*1e-3)
+        ax.set_ylim(0, 1)
+
+    # --------------
+    # save
+    # --------------
+
+    if pfe_save is not False:
+        if pfe_save is None:
+            name = 'fig04_bremsstrahlung.png'
+            if path_save is None:
+                path_save = _PATH_SAVE
+            pfe_save = os.path.join(_PATH_SAVE, name)
+        fig.savefig(pfe_save, format='png', dpi=300)
+        msg = f"Saved figure in:\n\t{pfe_save}\n"
+        print(msg)
+
+    return dax, demiss, ddist, d2cross_phi
