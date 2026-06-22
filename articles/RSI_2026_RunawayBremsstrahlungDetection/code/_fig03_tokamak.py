@@ -1,4 +1,5 @@
 import os
+import copy
 
 
 import numpy as np
@@ -25,9 +26,10 @@ _DR = {
     'rplasma': 0.60,
     'RVes': [1.2, 2.66],
     'Rcryo': 4.6,
+    ''
     'PP_R': np.r_[2.50, 4.7],  # 4.2
     'PP_width': 0.47,
-    'PP_phi': np.r_[-180, 0] * np.pi/180,
+    'PP_phi': np.r_[-180, -20, 0, 20] * np.pi/180,
 }
 
 
@@ -41,8 +43,10 @@ _DSENSORS = {
         'marker': '.',
         'ms': 2,
         'alpha': 0.6,
+        'shielding': True,
+        'dogleg': True,
     },
-    'ex': {
+    'ex1': {
         'pp': 1,
         'R': 6,
         'cw': False,
@@ -52,10 +56,60 @@ _DSENSORS = {
         'marker': '.',
         'ms': 2,
         'alpha': 0.6,
+        'shielding': True,
+        'opening': True,
         'wall': True,
         'beamdump': True,
         'neutrons_length': 1,
         'neutrons_width': 0.2,
+        'reflector': {
+            'angle': 20*np.pi/180,
+            'R': _DR['PP_R'][1] + 0.1,
+            'width': 0.25,
+            'color': 'k',
+            'lw': 2,
+        },
+    },
+    'ex2': {
+        'pp': 2,
+        'R': 6,
+        'cw': False,
+        'color': 'g',
+        'width': 0.10,
+        'dist': 4,
+        'marker': '.',
+        'ms': 2,
+        'alpha': 0.6,
+        'shielding': True,
+        'opening': True,
+        'wall': True,
+        'beamdump': True,
+        'neutrons_length': 1,
+        'neutrons_width': 0.2,
+    },
+    'ex3': {
+        'pp': 3,
+        'R': 6,
+        'cw': False,
+        'color': 'g',
+        'width': 0.10,
+        'dist': 4,
+        'marker': '.',
+        'ms': 2,
+        'alpha': 0.6,
+        'shielding': True,
+        'opening': True,
+        'wall': True,
+        'beamdump': True,
+        'neutrons_length': 1,
+        'neutrons_width': 0.2,
+        'reflector': {
+            'angle': -20*np.pi/180,
+            'R': _DR['PP_R'][0],
+            'width': 0.25,
+            'color': 'k',
+            'lw': 2,
+        },
     },
 }
 
@@ -77,26 +131,8 @@ def main(
     PP_width=None,
     PP_phi=None,
     # sensors
-    in_pp=None,
-    in_R=None,
-    in_cw=None,
-    in_rplasma_ratio=None,
-    in_color=None,
-    in_marker=None,
-    in_ms=None,
-    in_dogleg=None,
-    # ex
     res=None,
-    ex_pp=None,
-    ex_R=None,
-    ex_cw=None,
-    ex_width=None,
-    ex_dist=None,
-    ex_color=None,
-    ex_marker=None,
-    ex_ms=None,
-    ex_neutrons_length=None,
-    ex_neutrons_width=None,
+    dsensors=None,
     # plot
     figsize=(5, 7),
     fontsize=12,
@@ -234,7 +270,7 @@ def main(
         # add arrows
 
         R = dinput['R0']['data'][0] + 0.5 * dinput['rplasma']['data'][0]
-        phi = np.r_[100, 160] * np.pi / 180
+        phi = np.r_[130, 170] * np.pi / 180
         # dist = R * np.hypot(
         # np.cos(phi[0]) - np.cos(phi[1]),
         # np.sin(phi[0]) - np.sin(phi[1]),
@@ -242,7 +278,7 @@ def main(
         # rad = (R * (1 - np.cos(np.abs(np.diff(phi)/2))) / dist)[0]
         rad = -0.3
         ax.annotate(
-            "RE",
+            "",
             xy=(R*np.cos(phi[0]), R*np.sin(phi[0])),
             xycoords='data',
             xytext=(R*np.cos(phi[1]), R*np.sin(phi[1])),
@@ -250,6 +286,8 @@ def main(
             color='r',
             fontweight='bold',
             fontsize=fontsize,
+            horizontalalignment='center',
+            verticalalignment='center',
             arrowprops=dict(
                 arrowstyle="->",
                 lw=1.5,
@@ -258,6 +296,16 @@ def main(
                 patchA=None, patchB=None,
                 connectionstyle=f'arc3,rad={rad}',
             ),
+        )
+        ax.text(
+            R*np.cos(np.mean(phi)),
+            R*np.sin(np.mean(phi)),
+            "RE",
+            color='r',
+            horizontalalignment='left',
+            verticalalignment='top',
+            fontweight='bold',
+            fontsize=fontsize,
         )
 
         # --------------
@@ -276,7 +324,7 @@ def main(
                 cent[1] - 0.5 * width,
             )
 
-            # patch
+            # patch white
             patch = mpatches.Rectangle(
                 xy,
                 length,
@@ -307,6 +355,20 @@ def main(
                 zorder=15,
             )
 
+            # patch dark
+            patch = mpatches.Rectangle(
+                (xy[0], cent[1] - 0.4*width),
+                length,
+                width*0.80,
+                angle=phi*180/np.pi,
+                rotation_point='center',
+                facecolor='k',
+                alpha=0.5,
+                edgecolor='None',
+                zorder=20,
+            )
+            ax.add_patch(patch)
+
             # edges
             ephi = np.r_[-np.sin(phi), np.cos(phi)]
             edgex = (
@@ -330,7 +392,11 @@ def main(
         # --------------
         # add sensors
 
-        dsensors = _sensors(**locals())
+        dsensors = _sensors(
+            res=res,
+            dsensors=dsensors,
+            dinput=dinput,
+        )
 
         for k0, v0 in dsensors.items():
 
@@ -339,7 +405,7 @@ def main(
                 v0['path'],
                 facecolor=v0['color'],
                 alpha=v0['alpha'],
-                zorder=25,
+                zorder=50,
                 edgecolor=v0['color'],
             )
             ax.add_patch(patch)
@@ -363,9 +429,25 @@ def main(
                 c=v0['color'],
                 marker=v0.get('marker', '.'),
                 ls='None',
-                zorder=30,
+                zorder=60,
                 ms=v0.get('ms', 4),
             )
+
+            # patch
+            if v0.get('patch') is not None:
+                ax.add_patch(
+                    v0['patch'],
+                )
+
+            if v0.get('reflector') is not None:
+                ax.plot(
+                    v0['reflector']['x'],
+                    v0['reflector']['y'],
+                    c=v0['reflector']['color'],
+                    lw=v0['reflector']['lw'],
+                    label='reflector',
+                    zorder=100,
+                )
 
             # neutrons
             if v0.get('neutrons') is not None:
@@ -566,7 +648,6 @@ def _fig02_check(
         PP_phi, 'PP_phi',
         dtype=float,
         unique=True,
-        size=2,
     )
     dinput['PP_phi']['data'] = np.arctan2(np.sin(PP_phi), np.cos(PP_phi))
 
@@ -575,26 +656,7 @@ def _fig02_check(
 
 def _sensors(
     res=None,
-    # sensors - in
-    in_pp=None,
-    in_R=None,
-    in_cw=None,
-    in_rplasma_ratio=None,
-    in_color=None,
-    in_marker=None,
-    in_ms=None,
-    in_dogleg=None,
-    # sensors - ex
-    ex_pp=None,
-    ex_R=None,
-    ex_cw=None,
-    ex_width=None,
-    ex_dist=None,
-    ex_color=None,
-    ex_marker=None,
-    ex_ms=None,
-    ex_neutrons_length=None,
-    ex_neutrons_width=None,
+    dsensors=None,
     # dinput
     dinput=None,
     # unused
@@ -616,16 +678,8 @@ def _sensors(
     # initialize
     # --------------
 
-    dsensors = {
-        'in': {
-            kk.replace('in_', ''): vv for kk, vv in locals().items()
-            if kk.startswith('in_')
-        },
-        'ex': {
-            kk.replace('ex_', ''): vv for kk, vv in locals().items()
-            if kk.startswith('ex_')
-        },
-    }
+    if dsensors is None:
+        dsensors = copy.deepcopy(_DSENSORS)
 
     # --------------
     # check
@@ -697,8 +751,84 @@ def _sensors(
             vect_out = vect_out / np.linalg.norm(vect_out)
             vect_in = vect_in / np.linalg.norm(vect_in)
 
-        # Get FOV from cent + 2 vect
-        xx, yy = _FOV(cent, vect_out, vect_in, R0, rplasma)
+        # ------------
+        # reflector in
+
+        if dsensors[k0].get('reflector') is not None:
+
+            ref_angle = dsensors[k0]['reflector']['angle']
+            ref_R = dsensors[k0]['reflector']['R']
+            ref_width = dsensors[k0]['reflector']['width']
+
+            ref_kk, ref_isout = _intersect(cent, -eRs, ref_R)
+            ref_kk = ref_kk[~ref_isout]
+
+            ref_cent = cent + ref_kk * (-eRs)
+            ref_epar = eRs * np.cos(ref_angle) + ephis * np.sin(ref_angle)
+            ref_nin = np.r_[-ref_epar[1], ref_epar[0]]
+
+            refx = ref_cent[0] + 0.5 * ref_width * np.r_[-1, 1] * ref_epar[0]
+            refy = ref_cent[1] + 0.5 * ref_width * np.r_[-1, 1] * ref_epar[1]
+
+            dsensors[k0]["reflector"]['x'] = refx
+            dsensors[k0]["reflector"]['y'] = refy
+
+            cent_out, vect_out2 = _intersect_line(
+                cent, vect_out, ref_cent, ref_epar,
+            )
+            cent_in, vect_in2 = _intersect_line(
+                cent, vect_in, ref_cent, ref_epar,
+            )
+
+            # if ref_R > 3 => update cent
+            if ref_R > 3:
+                cent_new = (
+                    ref_cent
+                    + np.sum((cent - ref_cent) * ref_epar) * ref_epar
+                    - np.sum((cent - ref_cent) * ref_nin) * ref_nin
+                )
+                vect_out2 = vect_out
+                vect_in2 = vect_in
+            else:
+                cent_new = cent
+
+            msg = (
+                f"\nReflector {k0}:\n"
+                f"\t- ref_R: {ref_R} vs {np.linalg.norm(ref_cent)}\n"
+                f"\t- ref_angle: {ref_angle}\n"
+                f"\t- ref_width: {ref_width}\n"
+                f"\t- ref_cent: {ref_cent}\n"
+                f"\t- ref_nin: {ref_nin}\n"
+                f"\t- ref_epar: {ref_epar}\n"
+                f"\t- ref_isout: {ref_isout}\n"
+                f"\t- ref_kk: {ref_kk}\n"
+                f"\t- cent: {cent}\n"
+                f"\t- cent_new: {cent_new}\n"
+                f"\t- cent_out: {cent_out}\n"
+                f"\t- cent_in: {cent_in}\n"
+                f"\t- eRs: {eRs}\n"
+                f"\t- vect_out: {vect_out}\n"
+                f"\t- vect_out2: {vect_out2}\n"
+                f"\t- vect_in: {vect_in}\n"
+                f"\t- vect_in2: {vect_in2}\n"
+            )
+            print(msg)
+        else:
+            cent_out = cent
+            cent_in = cent
+            cent_new = None
+            vect_out2 = vect_out
+            vect_in2 = vect_in
+
+        # FOV
+        xx, yy = _FOV(
+            cent_out, vect_out2,
+            cent_in, vect_in2,
+            R0,
+            rplasma,
+            cent_new,
+        )
+
         path = mpath.Path(np.array([xx, yy]).T)
 
         # Sample FOV
@@ -718,7 +848,9 @@ def _sensors(
         ptsx = ptsx[iok]
         ptsy = ptsy[iok]
 
+        # ------------
         # Angle
+
         pts_phi = np.arctan2(ptsy, ptsx)
         pts_ephi0 = -np.sin(pts_phi)
         pts_ephi1 = np.cos(pts_phi)
@@ -729,7 +861,9 @@ def _sensors(
         vect1 = vect1 / vectn
         theta_vs_B = np.arccos(vect0 * pts_ephi0 + vect1 * pts_ephi1)
 
+        # ------------
         # store
+
         dsensors[k0]["ptsx"] = ptsx
         dsensors[k0]["ptsy"] = ptsy
         dsensors[k0]["rplasma_norm"] = (
@@ -738,31 +872,55 @@ def _sensors(
         dsensors[k0]["theta_vs_B"] = theta_vs_B
         dsensors[k0]["path"] = path
 
+        # patch
+        if k0.startswith('ex'):
+            xpath = (
+                ppc[0]
+                + 0.5 * v0['width'] * np.r_[-1, -1, 1, 1] * ephis[0]
+                + 0.6 * length * np.r_[-1, 1, 1, -1] * eRs[0]
+            )
+            ypath = (
+                ppc[1]
+                + 0.5 * v0['width'] * np.r_[-1, -1, 1, 1] * ephis[1]
+                + 0.6 * length * np.r_[-1, 1, 1, -1] * eRs[1]
+            )
+
+            path_patch = mpath.Path(np.array([xpath, ypath]).T)
+            dsensors[k0]['patch'] = mpatches.PathPatch(
+                path_patch,
+                facecolor='w',
+                alpha=1.,
+                zorder=30,
+                edgecolor='w',
+            )
+
         # ----------
         # neutrons
 
         if dsensors[k0].get('neutrons_length') is not None:
 
             poutpp = ppc + 0.5 * np.diff(dinput['PP_R']['data']) * eRs
-            theta = np.linspace(-1, 1, 101) * np.pi
-            rad = 0.05 + 1 * np.exp(-(theta**2)/(np.pi/8)**2)
+            length = dsensors[k0]['neutrons_length'] * eRs
+            rad = dsensors[k0]['neutrons_width']
+            theta = np.linspace(-1, 1, 101) * np.pi / 2
             cos = np.cos(theta)
             sin = np.sin(theta)
-            xx = poutpp[0] + rad * (cos * eRs[0] + sin * ephis[0])
-            yy = poutpp[1] + rad * (cos * eRs[1] + sin * ephis[1])
+            xx = poutpp[0] + np.r_[
+                0,
+                length[0] + rad * (cos * eRs[0] + sin * ephis[0]),
+                0,
+            ]
+            yy = poutpp[1] + + np.r_[
+                0,
+                length[1] + rad * (cos * eRs[1] + sin * ephis[1]),
+                0,
+            ]
 
             dsensors[k0]['neutrons'] = {
                 'x': xx,
                 'y': yy,
                 'color': 'r',
             }
-
-        # -----------------
-        # reflector
-
-        if dsensors[k0].get('reflector') is not None:
-
-            pass
 
     return dsensors
 
@@ -787,35 +945,41 @@ def _tangent(
     return vect
 
 
-def _FOV(cent, vect_out, vect_in, R0, rplasma):
+def _FOV(
+    cent_out, vect_out,
+    cent_in, vect_in,
+    R0,
+    rplasma,
+    cent=None,
+):
 
     # ------------------
     # intersect vect_out
     # ------------------
 
-    kk_out_out, isout_out_out = _intersect(cent, vect_out, R0 + rplasma)
-    kk_out_in, isout_out_in = _intersect(cent, vect_out, R0 - rplasma)
+    kk_out_out, isout_out_out = _intersect(cent_out, vect_out, R0 + rplasma)
+    kk_out_in, isout_out_in = _intersect(cent_out, vect_out, R0 - rplasma)
 
     kk_out = np.r_[kk_out_out, kk_out_in]
     iok_out = np.r_[isout_out_out, ~isout_out_in]
     iok = np.isfinite(kk_out) & iok_out
     assert iok.sum() >= 1
     kout = np.min(kk_out[iok])
-    pt_out = cent + kout * vect_out
+    pt_out = cent_out + kout * vect_out
 
     # ------------------
     # intersect vect_in
     # ------------------
 
-    kk_in_out, isout_in_out = _intersect(cent, vect_in, R0 + rplasma)
-    kk_in_in, isout_in_in = _intersect(cent, vect_in, R0 - rplasma)
+    kk_in_out, isout_in_out = _intersect(cent_in, vect_in, R0 + rplasma)
+    kk_in_in, isout_in_in = _intersect(cent_in, vect_in, R0 - rplasma)
 
     kk_in = np.r_[kk_in_out, kk_in_in]
     iok_in = np.r_[isout_in_out, ~isout_in_in]
     iok = np.isfinite(kk_in) & iok_in
     assert iok.sum() >= 1
     kin = np.min(kk_in[iok])
-    pt_in = cent + kin * vect_in
+    pt_in = cent_in + kin * vect_in
 
     assert np.allclose(np.linalg.norm(pt_out), np.linalg.norm(pt_in))
     Rpts = np.linalg.norm(pt_out)
@@ -833,8 +997,13 @@ def _FOV(cent, vect_out, vect_in, R0, rplasma):
         ang_min, ang_max = ang_max, ang_min + 2*np.pi
     ang = np.linspace(ang_min, ang_max, 31)
 
-    polyx = np.r_[cent[0], Rpts * np.cos(ang), cent[0]]
-    polyy = np.r_[cent[1], Rpts * np.sin(ang), cent[1]]
+    polyx = np.r_[cent_out[0], Rpts * np.cos(ang), cent_in[0]]
+    polyy = np.r_[cent_out[1], Rpts * np.sin(ang), cent_in[1]]
+
+    # cent
+    if cent is not None:
+        polyx = np.r_[polyx, cent[0], cent_out[0]]
+        polyy = np.r_[polyy, cent[1], cent_out[1]]
 
     return polyx, polyy
 
@@ -868,3 +1037,22 @@ def _intersect(cent, vect, R):
     assert isout.sum() <= 1
 
     return kk, isout
+
+
+def _intersect_line(cent, vect, pt, nin):
+
+    # ----------
+    # kk
+
+    # AM = ku
+    # (pt_cent + cent_M).nin = 0
+    # (pt_cent + kk * vect).nin = 0
+    kk = - np.sum(vect * nin) / np.sum((cent - pt) * nin)
+
+    # ----------
+    # reflected vector
+
+    vect2 = vect - 2 * np.sum(vect * nin) * nin
+    vect2 = vect2 / np.linalg.norm(vect2)
+
+    return cent + kk * vect, vect2

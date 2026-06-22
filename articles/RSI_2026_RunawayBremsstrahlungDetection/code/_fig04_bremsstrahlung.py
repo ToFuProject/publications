@@ -34,8 +34,8 @@ _PFE_D2CROSS_PHI = os.path.join(
 
 _CASES = {
     'case': {
-        '0': {'Te': 0.1e3, 'jp_frac': 0.9, 'color': 'r', 'hatch': '/'},
-        '1': {'Te': 2.0e3, 'jp_frac': 0.1, 'color': 'b', 'hatch': "-"},
+        '0': {'Te': 0.1e3, 'jp_frac': 0.9, 'color': 'r', 'hatch': '//'},
+        '1': {'Te': 2.0e3, 'jp_frac': 0.1, 'color': 'b', 'hatch': "\\"},
     },
     'theta_ph_vsB': {
         'val': np.r_[0, 0.5, 1]*np.pi,
@@ -182,7 +182,7 @@ def main(
 
     dmargin = {
         'left': 0.06, 'right': 0.98,
-        'bottom': 0.06, 'top': 0.95,
+        'bottom': 0.06, 'top': 0.93,
         'wspace': 0.25, 'hspace': 0.30,
     }
 
@@ -262,7 +262,7 @@ def main(
                 fontweight='bold',
             )
             ax.set_xlim(0, 180)
-            ax.set_ylim(0, 1)
+            # ax.set_ylim(0, 1)
             ax0 = ax
 
         dax[f'theta_{ii}_log'] = ax
@@ -322,14 +322,26 @@ def main(
                     np.nanmin(emiss_E, axis=-1),
                     np.nanmax(emiss_E, axis=-1),
                     hatch=v0['hatch'],
-                    facecolor=v0['color'],
+                    facecolor='None',
                     alpha=0.5,
+                    edgecolor=v0['color'],
+                    ls='--' if kdist == 'RE' else '-',
                     label=f'{kdist}_{ic}',
                 )
 
+                ax.set_xscale('log')
+                ax.set_yscale('log')
+                ax.grid(True)
+
             # vlines
             for i1, cc in enumerate(cases['E_ph_eV']['val']):
-                ax.axvline(cc*1e-3, c='k', ls='--', lw=1)
+                ax.axvline(
+                    cc*1e-3,
+                    c='k',
+                    ls='--',
+                    lw=1,
+                    label=f"E_ph = {cc*1e-3:3.1f} keV",
+                )
 
             # Elim
             iE = np.argmin(np.abs(demiss['E_ph_eV']['data'] - Elim[ic]))
@@ -339,6 +351,7 @@ def main(
                 color=v0['color'],
                 ls='--',
                 lw=1,
+                label=f"E_lim = {Elim[ic]*1e-3:3.1f} keV",
             )
 
             # text
@@ -349,7 +362,7 @@ def main(
             ax.text(
                 Elim[ic] * 1e-3,
                 1,
-                r"$E_{ph,lim}$" + f" = {Elim[ic] * 1e-3:2.1f} keV",
+                r"$E_{ph,lim}$" + f"\n = {Elim[ic] * 1e-3:2.1f} keV",
                 horizontalalignment='center',
                 verticalalignment='bottom',
                 fontsize=fontsize,
@@ -380,8 +393,9 @@ def main(
                     ax.plot(
                         demiss['theta_ph_vsB']['data']*180/np.pi,
                         emiss_theta / emiss_theta.max(),
-                        ls=cases['E_ph_eV']['ls'][i1],
-                        lw=1 if kdist == 'RE' else 2,
+                        # ls=cases['E_ph_eV']['ls'][i1],
+                        ls='--' if kdist == 'RE' else '-',
+                        lw=1,
                         marker='None',
                         color=v0['color'],
                         label=f'{kdist}_{ic}_{cc*1e-3:3.1f}keV',
@@ -411,12 +425,15 @@ def main(
                     ax.semilogy(
                         demiss['theta_ph_vsB']['data']*180/np.pi,
                         emiss_theta,
-                        ls=cases['E_ph_eV']['ls'][i1],
-                        lw=1 if kdist == 'RE' else 2,
+                        # ls=cases['E_ph_eV']['ls'][i1],
+                        ls='--' if kdist == 'RE' else '-',
+                        lw=1,
                         marker='None',
                         color=v0['color'],
                         label=f'{kdist}_{ic}_{cc*1e-3:3.1f}keV',
                     )
+
+            ax.set_ylim(2e4, 6e14)
 
     # --------------
     # plot - Elim
