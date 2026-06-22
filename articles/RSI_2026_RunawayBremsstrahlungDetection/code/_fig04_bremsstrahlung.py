@@ -9,7 +9,7 @@ import datastock as ds
 import tofu as tf
 
 
-from ._fig02 import _DDIST
+from ._fig02_dist import _DDIST
 
 
 tfphysemis = tf.physics_tools.electrons.emission
