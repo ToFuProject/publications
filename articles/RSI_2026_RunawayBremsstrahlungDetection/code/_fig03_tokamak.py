@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.path as mpath
 import matplotlib.patches as mpatches
+import matplotlib.transforms as transforms
 import datastock as ds
 import tofu as tf
 
@@ -44,7 +45,13 @@ _DSENSORS = {
         'ms': 2,
         'alpha': 0.6,
         'shielding': True,
-        'dogleg': True,
+        'dogleg': {
+            'frac_h': 0.5,
+            'frac_v': 0.75,
+        },
+        'text': {
+            'str': "(0)",
+        },
     },
     'ex1': {
         'pp': 1,
@@ -63,11 +70,14 @@ _DSENSORS = {
         'neutrons_length': 1,
         'neutrons_width': 0.2,
         'reflector': {
-            'angle': 20*np.pi/180,
+            'angle': 15*np.pi/180,
             'R': _DR['PP_R'][1] + 0.1,
             'width': 0.25,
             'color': 'k',
             'lw': 2,
+        },
+        'text': {
+            'str': "(1)",
         },
     },
     'ex2': {
@@ -86,12 +96,15 @@ _DSENSORS = {
         'beamdump': True,
         'neutrons_length': 1,
         'neutrons_width': 0.2,
+        'text': {
+            'str': "(2)",
+        },
     },
     'ex3': {
         'pp': 3,
         'R': 6,
         'cw': False,
-        'color': 'g',
+        'color': (0.1, 0.9, 0.1),
         'width': 0.10,
         'dist': 4,
         'marker': '.',
@@ -104,11 +117,14 @@ _DSENSORS = {
         'neutrons_length': 1,
         'neutrons_width': 0.2,
         'reflector': {
-            'angle': -20*np.pi/180,
+            'angle': -15*np.pi/180,
             'R': _DR['PP_R'][0],
             'width': 0.25,
             'color': 'k',
             'lw': 2,
+        },
+        'text': {
+            'str': "(3)",
         },
     },
 }
@@ -167,7 +183,7 @@ def main(
     # --------------
 
     dmargin = {
-        'left': 0.11, 'right': 0.97,
+        'left': 0.11, 'right': 0.94,
         'bottom': 0.06, 'top': 0.99,
         'wspace': 0.25, 'hspace': 0.20,
     }
@@ -439,6 +455,7 @@ def main(
                     v0['patch'],
                 )
 
+            # reflectors
             if v0.get('reflector') is not None:
                 ax.plot(
                     v0['reflector']['x'],
@@ -449,6 +466,18 @@ def main(
                     zorder=100,
                 )
 
+            # dogleg
+            if v0.get('dogleg') is not None:
+                for ii, (cc, lw) in enumerate([('w', 3), (v0['color'], 1)]):
+                    ax.plot(
+                        v0['dogleg']['x'],
+                        v0['dogleg']['y'],
+                        ls='-',
+                        lw=lw,
+                        color=cc,
+                        zorder=100 + 10*ii,
+                    )
+
             # neutrons
             if v0.get('neutrons') is not None:
                 ax.fill(
@@ -457,6 +486,70 @@ def main(
                     v0['neutrons']['color'],
                     alpha=0.5,
                 )
+
+            # text
+            if v0.get('text') is not None:
+                ax.text(
+                    v0['text']['x'],
+                    v0['text']['y'],
+                    v0['text']['str'],
+                    horizontalalignment=v0['text']['horizontalalignment'],
+                    verticalalignment=v0['text']['verticalalignment'],
+                    fontsize=fontsize,
+                    fontweight='bold',
+                    color=v0['color'],
+                    transform=ax.transData,
+                )
+
+        # overall text in-vessel
+        lkin = [k0 for k0 in dsensors.keys() if k0.startswith('in')]
+        xx = np.mean([dsensors[k0]['text']['x'] for k0 in lkin])
+        yy = np.max([dsensors[k0]['text']['y'] for k0 in lkin])
+        ax.text(
+            xx,
+            yy + 0.5,
+            'In-vessel\nsensors',
+            horizontalalignment='center',
+            verticalalignment='bottom',
+            fontsize=fontsize,
+            fontweight='bold',
+            color=dsensors[lkin[0]]['color'],
+            transform=ax.transData,
+        )
+
+        # overall text ex-cryostat
+        lkex = [k0 for k0 in dsensors.keys() if k0.startswith('ex')]
+        xx = np.mean([dsensors[k0]['text']['x'] for k0 in lkex])
+        yy = np.max([dsensors[k0]['text']['y'] for k0 in lkex])
+        ax.text(
+            xx,
+            yy + 0.5,
+            'Ex-cryostat\nsensors',
+            horizontalalignment='center',
+            verticalalignment='bottom',
+            fontsize=fontsize,
+            fontweight='bold',
+            color=dsensors['ex1']['color'],
+            transform=ax.transData,
+        )
+
+        # overall text neutrons
+        ind = np.argmin([
+            np.min(dsensors[k0]['neutrons']['y']) for k0 in lkex
+        ])
+        xx = np.max(dsensors[lkex[ind]]['neutrons']['x'])
+        yy = np.min(dsensors[lkex[ind]]['neutrons']['y'])
+        ax.text(
+            xx,
+            yy - 0.5,
+            'neutrons',
+            horizontalalignment='center',
+            verticalalignment='bottom',
+            fontsize=fontsize,
+            fontweight='bold',
+            color=dsensors[lkex[ind]]['neutrons']['color'],
+            transform=ax.transData,
+        )
 
     # ----------------
     # plot theta_vs_B
@@ -477,6 +570,35 @@ def main(
                 ls=v0.get('ls', 'None'),
                 label=v0.get('label', k0),
             )
+
+            # text
+            if v0.get('text') is not None:
+                trans = transforms.blended_transform_factory(
+                    ax.transAxes, ax.transData,
+                )
+                ind = v0['rplasma_norm'] > 0.9
+                yy = v0['theta_vs_B'][ind]
+                if k0 == 'ex3':
+                    yy = np.mean(yy[yy < np.pi/4])
+                else:
+                    yy = np.mean(yy)
+                if k0 == 'ex1':
+                    txt = '(1,2)'
+                else:
+                    txt = v0['text']['str']
+
+                if k0 != 'ex2':
+                    ax.text(
+                        1.,
+                        yy * 180 / np.pi,
+                        txt,
+                        horizontalalignment='left',
+                        verticalalignment='center',
+                        fontsize=fontsize,
+                        fontweight='bold',
+                        color=v0['color'],
+                        transform=trans,
+                    )
 
         ax.axhline(90, c='k', ls='--', lw=1)
         ax.set_xlim(-1, 1)
@@ -704,6 +826,8 @@ def _sensors(
         ephi = np.r_[-np.sin(phi), np.cos(phi)]
         sign = v0["cw"] * 2 - 1
         width = dinput['PP_width']['data']
+        length = dinput['PP_R']['data'][1] - dinput['PP_R']['data'][0]
+        ppc = np.mean(dinput['PP_R']['data']) * eR
 
         # ----------
         # cent
@@ -711,18 +835,14 @@ def _sensors(
         if k0 == 'in':
             cent = v0['R'] * eR + sign * 0.5 * width * ephi
         else:
-            length = dinput['PP_R']['data'][1] - dinput['PP_R']['data'][0]
             dphi = np.arctan2(width - v0['width'], length)
             eRs = eR * np.cos(dphi) + sign * ephi * np.sin(dphi)
-            ppc = np.mean(dinput['PP_R']['data']) * eR
             cent = ppc + v0["dist"] * eRs
 
             # store
             dsensors[k0]["dphi"] = dphi
             dsensors[k0]["ppc"] = ppc
             dsensors[k0]["eRs"] = eRs
-
-        dsensors[k0]['cent'] = cent
 
         # ----------
         # FOV
@@ -774,14 +894,15 @@ def _sensors(
             dsensors[k0]["reflector"]['y'] = refy
 
             cent_out, vect_out2 = _intersect_line(
-                cent, vect_out, ref_cent, ref_epar,
+                cent, vect_out, ref_cent, ref_nin,
             )
             cent_in, vect_in2 = _intersect_line(
-                cent, vect_in, ref_cent, ref_epar,
+                cent, vect_in, ref_cent, ref_nin,
             )
 
             # if ref_R > 3 => update cent
             if ref_R > 3:
+
                 cent_new = (
                     ref_cent
                     + np.sum((cent - ref_cent) * ref_epar) * ref_epar
@@ -792,33 +913,36 @@ def _sensors(
             else:
                 cent_new = cent
 
-            msg = (
-                f"\nReflector {k0}:\n"
-                f"\t- ref_R: {ref_R} vs {np.linalg.norm(ref_cent)}\n"
-                f"\t- ref_angle: {ref_angle}\n"
-                f"\t- ref_width: {ref_width}\n"
-                f"\t- ref_cent: {ref_cent}\n"
-                f"\t- ref_nin: {ref_nin}\n"
-                f"\t- ref_epar: {ref_epar}\n"
-                f"\t- ref_isout: {ref_isout}\n"
-                f"\t- ref_kk: {ref_kk}\n"
-                f"\t- cent: {cent}\n"
-                f"\t- cent_new: {cent_new}\n"
-                f"\t- cent_out: {cent_out}\n"
-                f"\t- cent_in: {cent_in}\n"
-                f"\t- eRs: {eRs}\n"
-                f"\t- vect_out: {vect_out}\n"
-                f"\t- vect_out2: {vect_out2}\n"
-                f"\t- vect_in: {vect_in}\n"
-                f"\t- vect_in2: {vect_in2}\n"
-            )
-            print(msg)
+            if False:
+                msg = (
+                    f"\nReflector {k0}:\n"
+                    f"\t- ref_R: {ref_R} vs {np.linalg.norm(ref_cent)}\n"
+                    f"\t- ref_angle: {ref_angle*180/np.pi:3.1f} deg\n"
+                    f"\t- ref_width: {ref_width}\n"
+                    f"\t- ref_cent: {ref_cent}\n"
+                    f"\t- ref_nin: {ref_nin}\n"
+                    f"\t- ref_epar: {ref_epar}\n"
+                    f"\t- ref_isout: {ref_isout}\n"
+                    f"\t- ref_kk: {ref_kk}\n"
+                    f"\t- cent: {cent}\n"
+                    f"\t- cent_new: {cent_new}\n"
+                    f"\t- cent_out: {cent_out}\n"
+                    f"\t- cent_in: {cent_in}\n"
+                    f"\t- eRs: {eRs}\n"
+                    f"\t- vect_out: {vect_out}\n"
+                    f"\t- vect_out2: {vect_out2}\n"
+                    f"\t- vect_in: {vect_in}\n"
+                    f"\t- vect_in2: {vect_in2}\n"
+                )
+                print(msg)
         else:
             cent_out = cent
             cent_in = cent
             cent_new = None
             vect_out2 = vect_out
             vect_in2 = vect_in
+
+        dsensors[k0]['cent'] = cent if cent_new is None else cent_new
 
         # FOV
         xx, yy = _FOV(
@@ -877,12 +1001,12 @@ def _sensors(
             xpath = (
                 ppc[0]
                 + 0.5 * v0['width'] * np.r_[-1, -1, 1, 1] * ephis[0]
-                + 0.6 * length * np.r_[-1, 1, 1, -1] * eRs[0]
+                + 0.55 * length * np.r_[-1, 1, 1, -1] * eRs[0]
             )
             ypath = (
                 ppc[1]
                 + 0.5 * v0['width'] * np.r_[-1, -1, 1, 1] * ephis[1]
-                + 0.6 * length * np.r_[-1, 1, 1, -1] * eRs[1]
+                + 0.55 * length * np.r_[-1, 1, 1, -1] * eRs[1]
             )
 
             path_patch = mpath.Path(np.array([xpath, ypath]).T)
@@ -895,24 +1019,48 @@ def _sensors(
             )
 
         # ----------
+        # dogleg
+
+        if v0.get('dogleg') is not None:
+            # frac_h = v0['dogleg']['frac_h']
+            frac_v = v0['dogleg']['frac_v']
+            xx = np.r_[
+                cent[0],
+                ppc[0] - ephi[0] * frac_v * width/2 - eR[0] * length/2,
+                ppc[0] - ephi[0] * frac_v * width/2,
+                ppc[0] + ephi[0] * frac_v * width/2,
+                ppc[0] + ephi[0] * frac_v * width/2 + eR[0] * 2*length/3,
+            ]
+            yy = np.r_[
+                cent[1],
+                ppc[1] - ephi[1] * frac_v * width/2 - eR[1] * length/2,
+                ppc[1] - ephi[1] * frac_v * width/2,
+                ppc[1] + ephi[1] * frac_v * width/2,
+                ppc[1] + ephi[1] * frac_v * width/2 + eR[1] * 2*length/3,
+            ]
+
+            dsensors[k0]['dogleg']['x'] = xx
+            dsensors[k0]['dogleg']['y'] = yy
+
+        # ----------
         # neutrons
 
         if dsensors[k0].get('neutrons_length') is not None:
 
             poutpp = ppc + 0.5 * np.diff(dinput['PP_R']['data']) * eRs
-            length = dsensors[k0]['neutrons_length'] * eRs
+            neutrons_length = dsensors[k0]['neutrons_length'] * eRs
             rad = dsensors[k0]['neutrons_width']
             theta = np.linspace(-1, 1, 101) * np.pi / 2
             cos = np.cos(theta)
             sin = np.sin(theta)
             xx = poutpp[0] + np.r_[
                 0,
-                length[0] + rad * (cos * eRs[0] + sin * ephis[0]),
+                neutrons_length[0] + rad * (cos * eRs[0] + sin * ephis[0]),
                 0,
             ]
             yy = poutpp[1] + + np.r_[
                 0,
-                length[1] + rad * (cos * eRs[1] + sin * ephis[1]),
+                neutrons_length[1] + rad * (cos * eRs[1] + sin * ephis[1]),
                 0,
             ]
 
@@ -921,6 +1069,23 @@ def _sensors(
                 'y': yy,
                 'color': 'r',
             }
+
+        # ----------
+        # text
+
+        if v0.get('text') is not None:
+            if k0.startswith('in'):
+                dsensors[k0]['text']['x'] = ppc[0] + length * 0.7 * eR[0]
+                dsensors[k0]['text']['y'] = ppc[1] + length * 0.7 * eR[1]
+                dsensors[k0]['text']['horizontalalignment'] = 'right'
+                dsensors[k0]['text']['verticalalignment'] = 'center'
+            else:
+                if cent_new is None:
+                    cent_new = cent
+                dsensors[k0]['text']['x'] = cent_new[0] + length/10
+                dsensors[k0]['text']['y'] = cent_new[1]
+                dsensors[k0]['text']['horizontalalignment'] = 'left'
+                dsensors[k0]['text']['verticalalignment'] = 'center'
 
     return dsensors
 
@@ -995,7 +1160,7 @@ def _FOV(
     ang_max = max(ang_out, ang_in)
     if np.abs(ang_min - ang_max) > np.pi:
         ang_min, ang_max = ang_max, ang_min + 2*np.pi
-    ang = np.linspace(ang_min, ang_max, 31)
+    ang = np.linspace(ang_min, ang_max, 31)[::-1]
 
     polyx = np.r_[cent_out[0], Rpts * np.cos(ang), cent_in[0]]
     polyy = np.r_[cent_out[1], Rpts * np.sin(ang), cent_in[1]]
@@ -1039,15 +1204,15 @@ def _intersect(cent, vect, R):
     return kk, isout
 
 
-def _intersect_line(cent, vect, pt, nin):
+def _intersect_line(cent, vect, ref, nin):
 
     # ----------
     # kk
 
-    # AM = ku
-    # (pt_cent + cent_M).nin = 0
-    # (pt_cent + kk * vect).nin = 0
-    kk = - np.sum(vect * nin) / np.sum((cent - pt) * nin)
+    # cent_M = kk * vect
+    # (ref_cent + cent_M).nin = 0
+    # (ref_cent + kk * vect).nin = 0
+    kk = - np.sum((cent - ref) * nin) / np.sum(vect * nin)
 
     # ----------
     # reflected vector
