@@ -9,10 +9,6 @@ _PATH_TF = os.path.join(_PATH_PROJECTS, 'tofu')
 sys.path.insert(0, _PATH_TF)
 import tofu as tf
 sys.path.pop(0)
-_PATH_TFS = os.path.join(_PATH_PROJECTS, 'tofu_sparc')
-sys.path.insert(0, _PATH_TFS)
-import tofu_sparc as tfs
-sys.path.pop(0)
 
 
 # #####################################################
