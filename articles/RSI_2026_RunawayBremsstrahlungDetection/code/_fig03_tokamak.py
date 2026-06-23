@@ -77,7 +77,7 @@ _DSENSORS = {
             'lw': 2,
         },
         'text': {
-            'str': "(1)",
+            'str': "(2)",
         },
     },
     'ex2': {
@@ -97,7 +97,7 @@ _DSENSORS = {
         'neutrons_length': 1,
         'neutrons_width': 0.2,
         'text': {
-            'str': "(2)",
+            'str': "(1)",
         },
     },
     'ex3': {
