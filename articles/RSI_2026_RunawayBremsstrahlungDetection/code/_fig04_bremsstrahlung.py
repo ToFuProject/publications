@@ -28,7 +28,8 @@ _PATH_SAVE = os.path.join(os.path.dirname(_PATH_HERE), 'figures')
 
 _PFE_D2CROSS_PHI = os.path.join(
     _PATH_INPUTS,
-    'd2cross_phi_Ee01eV-100MeV-80log_Eph1eV-100MeV-81log_nthetaph61_nthetae060_EH.npz',
+    # 'd2cross_phi_Ee01eV-100MeV-80log_Eph1eV-100MeV-81log_nthetaph61_nthetae060_EH.npz',
+    'd2cross_phi_Ee01eV-100MeV-240log_Eph1eV-100MeV-241log_nthetaph61_nthetae060_EH.npz',
 )
 
 
@@ -185,11 +186,17 @@ def main(
         'bottom': 0.06, 'top': 0.93,
         'wspace': 0.25, 'hspace': 0.30,
     }
+    dmargin_theta = {
+        'left': 0.06, 'right': 0.98,
+        'bottom': 0.06, 'top': 0.60,
+        'wspace': 0.25, 'hspace': 0.10,
+    }
 
     fig = plt.figure(figsize=figsize)
 
     nE = len(cases['E_ph_eV']['val'])
     gs = gridspec.GridSpec(ncols=nE + 2, nrows=3, **dmargin)
+    gs_theta = gridspec.GridSpec(ncols=nE + 2, nrows=2, **dmargin_theta)
     dax = {}
 
     # ----------------
@@ -216,15 +223,10 @@ def main(
     ax0 = None
     for ii in range(nE):
         ax = fig.add_subplot(
-            gs[1, ii],
+            gs_theta[0, ii],
             aspect='auto',
             sharex=ax0,
             sharey=ax0,
-        )
-        ax.set_xlabel(
-            r'$\theta_{ph,B}$' + ' (deg)',
-            fontsize=fontsize,
-            fontweight='bold',
         )
         if ii == 0:
             ax.set_ylabel(
@@ -245,7 +247,7 @@ def main(
     ax0 = None
     for ii in range(nE):
         ax = fig.add_subplot(
-            gs[2, ii],
+            gs_theta[1, ii],
             aspect='auto',
             sharex=ax0,
             sharey=ax0,
