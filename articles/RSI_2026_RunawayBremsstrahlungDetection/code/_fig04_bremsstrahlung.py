@@ -59,8 +59,9 @@ def main(
     d2cross_phi=None,
     # dist
     ne_m3=None,
+    Ekin_max_eV=None,
     Te_eV=1e3 * np.linspace(0.1, 2.5, 25),
-    jp_fraction_re=np.linspace(0., 1., 21),
+    jp_fraction_re=np.linspace(0.025, 0.975, 39),
     # emiss
     E_ph_eV=None,
     # cases
@@ -98,10 +99,21 @@ def main(
         for kk, vv in _DDIST.items()
         if kk not in ['E_eV', 'theta']
     }
-    ddist['Te_eV'] = Te_eV[:, None]
-    ddist['jp_fraction_re'] = jp_fraction_re[None, :]
     if ne_m3 is not None:
         ddist['ne_m3'] = ne_m3
+
+    if Ekin_max_eV is not None:
+        if isinstance(Ekin_max_eV, (np.ndarray, tuple, list)):
+            ddist['Ekin_max_eV'] = np.ravel(Ekin_max_eV)[:, None, None]
+            ddist['Te_eV'] = Te_eV[None, :, None]
+            ddist['jp_fraction_re'] = jp_fraction_re[None, None, :]
+        else:
+            ddist['Ekin_max_eV'] = Ekin_max_eV
+            ddist['Te_eV'] = Te_eV[:, None]
+            ddist['jp_fraction_re'] = jp_fraction_re[None, :]
+    else:
+        ddist['Te_eV'] = Te_eV[:, None]
+        ddist['jp_fraction_re'] = jp_fraction_re[None, :]
 
     # --------------
     # integrated cross-section
