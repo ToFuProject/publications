@@ -24,16 +24,16 @@ _PATH_SAVE = os.path.join(os.path.dirname(_PATH_HERE), 'figures')
 
 _DDIST = {
     # maxwell
-    'Te_eV': np.r_[0.1e3, 0.1e3, 1e3, 1e3],
+    'Te_eV': np.r_[0.1e3, 2e3, 0.1e3, 2e3],
     'ne_m3': 1e19,
     'jp_Am2': 1e6,
     # RE
-    'jp_fraction_re': np.r_[0.1, 0.9, 0.1, 0.9],
+    'jp_fraction_re': np.r_[0.1, 0.1, 0.9, 0.9],
     'dominant': 'bump',
-    'Ekin_max_eV': 1e6,
+    'pnormW': np.r_[0.1, 4, 0.1, 4],
+    'Ekin_max_eV': np.r_[100e3, 10e6, 100e3, 10e6],
     'Ekin_min_eV': 100,
-    'step': 1,
-    'pnormW': 5,
+    'step': 0.1,
     'theta_width': 20*np.pi/180,
     # coords
     'E_eV': np.logspace(0, 8, 80),
@@ -92,25 +92,25 @@ def main(
     # compute
     # ------------
 
-    # dout = {'dist': dict, 'plasma': dist, 'coords': dist}
-    dout = tfphysdist.get_distribution(**din)
+    # ddist = {'dist': dict, 'plasma': dist, 'coords': dist}
+    ddist = tfphysdist.get_distribution(**din)
 
     # units
-    units2d = asunits.Unit(dout['dist']['RE']['dist']['units'])
-    units1d = units2d * asunits.Unit(dout['coords']['x1']['units'])
+    units2d = asunits.Unit(ddist['dist']['RE']['dist']['units'])
+    units1d = units2d * asunits.Unit(ddist['coords']['x1']['units'])
 
     # ------------
     # Derive 1d data
     # ------------
 
     dataRE = scpinteg.trapezoid(
-        dout['dist']['RE']['dist']['data'],
-        x=dout['coords']['x1']['data'],
+        ddist['dist']['RE']['dist']['data'],
+        x=ddist['coords']['x1']['data'],
         axis=-1,
     )
     dataMax = scpinteg.trapezoid(
-        dout['dist']['maxwell']['dist']['data'],
-        x=dout['coords']['x1']['data'],
+        ddist['dist']['maxwell']['dist']['data'],
+        x=ddist['coords']['x1']['data'],
         axis=-1,
     )
 
@@ -118,20 +118,20 @@ def main(
     # Derive levels, vmin, vmax
     # ------------
 
-    Ekin_max = dout['plasma']['Ekin_max_eV']['data']
+    Ekin_max = ddist['plasma']['Ekin_max_eV']['data']
     vminRE_2d = np.inf
     vminRE_1d = np.inf
     for ind in np.ndindex(dataRE.shape[:-1]):
-        indE = np.argmin(np.abs(dout['coords']['x0']['data'] - Ekin_max[ind]))
+        indE = np.argmin(np.abs(ddist['coords']['x0']['data'] - Ekin_max[ind]))
         sli = ind + (indE, slice(None))
-        vmaxRE_2d = np.nanmax(dout['dist']['RE']['dist']['data'][sli])
+        vmaxRE_2d = np.nanmax(ddist['dist']['RE']['dist']['data'][sli])
         vminRE_2d = min(vminRE_2d, vmaxRE_2d)
         sli = ind + (indE,)
         vmaxRE_1d = dataRE[sli]
         vminRE_1d = min(vminRE_1d, vmaxRE_1d)
-    vmaxRE_2d = np.nanmax(dout['dist']['RE']['dist']['data'])
+    vmaxRE_2d = np.nanmax(ddist['dist']['RE']['dist']['data'])
     vmaxRE_1d = np.nanmax(dataRE)
-    vmaxMax_2d = np.nanmax(dout['dist']['maxwell']['dist']['data'])
+    vmaxMax_2d = np.nanmax(ddist['dist']['maxwell']['dist']['data'])
     vmaxMax_1d = np.nanmax(dataMax)
 
     # 1d
@@ -154,24 +154,31 @@ def main(
     # --------------
 
     dlabel = {}
-    for ind in np.ndindex(dout['dist']['RE']['dist']['data'].shape[:-2]):
-        Te = dout['plasma']['Te_eV']['data'][ind] * 1e-3
-        jpf = dout['plasma']['jp_fraction_re']['data'][ind]
+    for ind in np.ndindex(ddist['dist']['RE']['dist']['data'].shape[:-2]):
+        Te = ddist['plasma']['Te_eV']['data'][ind] * 1e-3
+        jpf = ddist['plasma']['jp_fraction_re']['data'][ind]
+        Ek = ddist['plasma']['Ekin_max_eV']['data'][ind]
+        Ek = f"{Ek*1e-3:3.0f} keV" if np.log10(Ek) <= 6 else f"{Ek*1e-6:2.0f} Mev"
 
-        dlabel[ind] = f"{jpf:2.1f}  ,    {Te:2.1f} keV"
+        dlabel[ind] = f"{jpf:2.1f}  ,    {Te:2.1f} keV,  {Ek}"
 
     # title
-    ne = np.unique(dout['plasma']['ne_m3']['data'])
+    ne = np.unique(ddist['plasma']['ne_m3']['data'])
     assert ne.size == 1
-    jp = np.unique(dout['plasma']['jp_Am2']['data'])
+    jp = np.unique(ddist['plasma']['jp_Am2']['data'])
     assert jp.size == 1
-    tit = f"ne = {ne[0]:2.1e}, jp_tot = {jp[0]*1e-6:2.1f} MA/m2"
+    tit = (
+        r"$n_e$"
+        + f" = {ne[0]:2.1e}, "
+        + r"$j_{P,tot}$"
+        + f" = {jp[0]*1e-6:2.1f} MA/m2"
+    )
 
     # --------------
     # print
     # --------------
 
-    _print(dout)
+    _print(ddist)
 
     # --------------
     # prepare axes
@@ -248,7 +255,13 @@ def main(
         ax = dax[kax]['handle']
 
         # for legend
-        ax.plot([], [], c='w', ls='-', lw=1, label='j_frac, Te')
+        ax.plot(
+            [], [],
+            c='w',
+            ls='-',
+            lw=1,
+            label=r"$j_{frac}$, $T_e$,   $E_{e_0,max}$",
+        )
 
         # loop plot
         for ind in np.ndindex(dataRE.shape[:-1]):
@@ -256,7 +269,7 @@ def main(
 
             # Max
             l0, = ax.plot(
-                dout['coords']['x0']['data']*1e-3,
+                ddist['coords']['x0']['data']*1e-3,
                 dataMax[sli],
                 ls='-',
                 lw=1,
@@ -265,7 +278,7 @@ def main(
 
             # RE
             ax.plot(
-                dout['coords']['x0']['data']*1e-3,
+                ddist['coords']['x0']['data']*1e-3,
                 dataRE[sli],
                 ls='--',
                 lw=1,
@@ -274,7 +287,7 @@ def main(
 
             # Total
             ax.plot(
-                dout['coords']['x0']['data']*1e-3,
+                ddist['coords']['x0']['data']*1e-3,
                 dataMax[sli] + dataRE[sli],
                 ls='-',
                 lw=2,
@@ -284,13 +297,13 @@ def main(
 
         # Add critical energy
         Ec = tf.physics_tools.electrons.convert_momentum_velocity_energy(
-            momentum_normalized=dout['dist']['RE']['p_crit']['data'],
+            momentum_normalized=ddist['dist']['RE']['p_crit']['data'],
         )['energy_kinetic_eV']['data']
         for ec in np.unique(Ec):
             ax.axvline(ec*1e-3, c='k', lw=1, ls='--')
 
         # decorate
-        ax.legend()
+        ax.legend(loc="upper right")
         ax.grid(True)
         ax.set_ylim(vmin_1d, vmax_1d)
 
@@ -308,18 +321,21 @@ def main(
 
             # data
             data = (
-                dout['dist']['maxwell']['dist']['data'][sli]
-                + dout['dist']['RE']['dist']['data'][sli]
+                ddist['dist']['maxwell']['dist']['data'][sli]
+                + ddist['dist']['RE']['dist']['data'][sli]
             )
 
             # contour
             ax.contour(
-                dout['coords']['x0']['data']*1e-3,
-                dout['coords']['x1']['data']*180/np.pi,
+                ddist['coords']['x0']['data']*1e-3,
+                ddist['coords']['x1']['data']*180/np.pi,
                 data.T,
                 levels_2d,
                 colors=dcolor[ind],
             )
+
+        # decorate
+        ax.grid(True)
 
     # --------------
     # save
@@ -335,10 +351,16 @@ def main(
         msg = f"Saved figure in:\n\t{pfe_save}\n"
         print(msg)
 
-    return dax, dout
+    return dax, ddist
 
 
-def _print(dout, sep='  '):
+# #####################################################
+# #####################################################
+#       _print
+# #####################################################
+
+
+def _print(ddist, sep='  '):
 
     # -----------
     # header
@@ -355,14 +377,14 @@ def _print(dout, sep='  '):
     # header
 
     lc = []
-    for ind in np.ndindex(dout['dist']['RE']['dist']['data'].shape[:-2]):
-        Te = dout['plasma']['Te_eV']['data'][ind]*1e-3
-        ne = dout['plasma']['ne_m3']['data'][ind]*1e-20
-        jp = dout['plasma']['jp_Am2']['data'][ind]*1e-6
-        ne_max = dout['dist']['maxwell']['integ_ne']['data'][ind]*1e-20
-        ne_RE = dout['dist']['RE']['integ_ne']['data'][ind]*1e-20
-        jp_max = dout['dist']['maxwell']['integ_jp']['data'][ind]*1e-6
-        jp_RE = dout['dist']['RE']['integ_jp']['data'][ind]*1e-6
+    for ind in np.ndindex(ddist['dist']['RE']['dist']['data'].shape[:-2]):
+        Te = ddist['plasma']['Te_eV']['data'][ind]*1e-3
+        ne = ddist['plasma']['ne_m3']['data'][ind]*1e-20
+        jp = ddist['plasma']['jp_Am2']['data'][ind]*1e-6
+        ne_max = ddist['dist']['maxwell']['integ_ne']['data'][ind]*1e-20
+        ne_RE = ddist['dist']['RE']['integ_ne']['data'][ind]*1e-20
+        jp_max = ddist['dist']['maxwell']['integ_jp']['data'][ind]*1e-6
+        jp_RE = ddist['dist']['RE']['integ_jp']['data'][ind]*1e-6
 
         cc = [
             str(ind),
