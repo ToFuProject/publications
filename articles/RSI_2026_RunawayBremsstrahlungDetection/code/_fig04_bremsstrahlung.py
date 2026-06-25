@@ -35,8 +35,20 @@ _PFE_D2CROSS_PHI = os.path.join(
 
 _CASES = {
     'case': {
-        '0': {'Te': 0.1e3, 'jp_frac': 0.9, 'color': 'r', 'hatch': '//'},
-        '1': {'Te': 2.0e3, 'jp_frac': 0.1, 'color': 'b', 'hatch': "\\"},
+        '0': {
+            'Te': 0.1e3,
+            'jp_frac': 0.9,
+            'Ekin_max_eV': 100e3,
+            'color': 'r',
+            'hatch': '//',
+        },
+        '1': {
+            'Te': 2.0e3,
+            'jp_frac': 0.1,
+            'Ekin_max_eV': 10e6,
+            'color': 'b',
+            'hatch': "\\",
+        },
     },
     'theta_ph_vsB': {
         'val': np.r_[0, 0.5, 1]*np.pi,
@@ -59,8 +71,8 @@ def main(
     d2cross_phi=None,
     # dist
     ne_m3=None,
-    pnormW=None,
-    Ekin_max_eV=None,
+    pnormW=np.r_[0.1, 5],
+    Ekin_max_eV=np.r_[100e3, 10e6],
     # Te_eV=1e3 * np.linspace(0.1, 2.5, 25),
     Te_eV=1e3 * np.linspace(0.1, 2.5, 11),
     # jp_fraction_re=np.linspace(0.025, 0.975, 39),
@@ -109,17 +121,20 @@ def main(
         ddist['pnormW'] = pnormW
 
     if Ekin_max_eV is not None:
-        if isinstance(Ekin_max_eV, (np.ndarray, tuple, list)):
-            ddist['Ekin_max_eV'] = np.ravel(Ekin_max_eV)[:, None, None]
-            ddist['Te_eV'] = Te_eV[None, :, None]
-            ddist['jp_fraction_re'] = jp_fraction_re[None, None, :]
-        else:
-            ddist['Ekin_max_eV'] = Ekin_max_eV
-            ddist['Te_eV'] = Te_eV[:, None]
-            ddist['jp_fraction_re'] = jp_fraction_re[None, :]
-    else:
-        ddist['Te_eV'] = Te_eV[:, None]
-        ddist['jp_fraction_re'] = jp_fraction_re[None, :]
+        ddist['Ekin_max_eV'] = Ekin_max_eV
+
+    if pnormW is not None:
+        ddist['pnormW'] = pnormW
+
+    # shape
+    ddist['Ekin_max_eV'] = np.atleast_1d(ddist['Ekin_max_eV'])[:, None, None]
+    ddist['pnormW'] = np.atleast_1d(ddist['pnormW'])[:, None, None]
+    if ddist['pnormW'].size != ddist['Ekin_max_eV'].size:
+        raise Exception()
+    ddist['Te_eV'] = Te_eV[None, :, None]
+    ddist['jp_fraction_re'] = jp_fraction_re[None, None, :]
+
+    nEkin = ddist['Ekin_max_eV'].shape[0]
 
     # --------------
     # integrated cross-section
@@ -209,12 +224,15 @@ def main(
         'bottom': 0.06, 'top': 0.60,
         'wspace': 0.25, 'hspace': 0.10,
     }
+    dmargin_map = dict(dmargin)
+    dmargin_map['hspace'] = 0.10
 
     fig = plt.figure(figsize=figsize)
 
     nE = len(cases['E_ph_eV']['val'])
     gs = gridspec.GridSpec(ncols=nE + 2, nrows=3, **dmargin)
     gs_theta = gridspec.GridSpec(ncols=nE + 2, nrows=2, **dmargin_theta)
+    gs_map = gridspec.GridSpec(ncols=nE + 2, nrows=nEkin, **dmargin_map)
     dax = {}
 
     # ----------------
@@ -291,17 +309,26 @@ def main(
     # ax - Elim
     # ----------------
 
-    ax = fig.add_subplot(gs[:, nE:], aspect='auto')
-    ax.set_xlabel('Te (keV)', fontsize=fontsize, fontweight='bold')
-    ax.set_ylabel('jp_frac', fontsize=fontsize, fontweight='bold')
+    ax0 = None
+    for ii in range(nEkin):
+        ax = fig.add_subplot(
+            gs_map[ii, nE:],
+            aspect='auto',
+            sharex=ax0,
+            sharey=ax0,
+        )
+        if ii == 0:
+            ax0 = ax
+            ax.set_title(
+                tit,
+                fontsize=fontsize,
+                fontweight='bold',
+            )
+        elif ii == nEkin - 1:
+            ax.set_xlabel('Te (keV)', fontsize=fontsize, fontweight='bold')
+        ax.set_ylabel('jp_frac', fontsize=fontsize, fontweight='bold')
 
-    ax.set_title(
-        tit,
-        fontsize=fontsize,
-        fontweight='bold',
-    )
-
-    dax['Elim'] = ax
+        dax[f'Elim_{ii}'] = ax
 
     dax = ds._generic_check._check_dax(dax)
 
@@ -311,6 +338,7 @@ def main(
 
     Teu = np.unique(ddist['plasma']['Te_eV']['data'])
     jp_fracu = np.unique(ddist['plasma']['jp_fraction_re']['data'])
+    Ekinu = np.unique(ddist['plasma']['Ekin_max_eV']['data'])
 
     # loop on cases
     for i0, (k0, v0) in enumerate(cases['case'].items()):
@@ -318,9 +346,11 @@ def main(
         # slice
         Te = Teu[np.argmin(np.abs(Teu - v0['Te']))]
         jpf = jp_fracu[np.argmin(np.abs(jp_fracu - v0['jp_frac']))]
+        Ekin = Ekinu[np.argmin(np.abs(Ekinu - v0['Ekin_max_eV']))]
         ic = (
             (ddist['plasma']['jp_fraction_re']['data'] == jpf)
             & (ddist['plasma']['Te_eV']['data'] == Te)
+            & (ddist['plasma']['Ekin_max_eV']['data'] == Ekin)
         )
         assert ic.sum() == 1
         ic = tuple([cc[0] for cc in ic.nonzero()])
@@ -459,42 +489,52 @@ def main(
     # plot - Elim
     # --------------
 
-    kax = 'Elim'
-    if dax.get(kax) is not None:
-        ax = dax[kax]['handle']
+    for ii in range(nEkin):
+        kax = f'Elim_{ii}'
+        if dax.get(kax) is not None:
+            ax = dax[kax]['handle']
 
-        cs = ax.contour(
-            ddist['plasma']['Te_eV']['data'] * 1e-3,
-            ddist['plasma']['jp_fraction_re']['data'],
-            Elim * 1e-3,
-            cmap=plt.cm.viridis,
-            levels=np.r_[1, 2, 5, 7.5, 10, 15],
-            vmin=0.1,
-            vmax=20,
-        )
-
-        # cases
-        for i0, (k0, v0) in enumerate(cases['case'].items()):
-            ax.plot(
-                v0['Te']*1e-3,
-                v0['jp_frac'],
-                marker='*',
-                markersize=8,
-                markerfacecolor=v0['color'],
-                color=v0['color'],
+            sli = (ii, slice(None), slice(None))
+            cs = ax.contour(
+                ddist['plasma']['Te_eV']['data'][sli] * 1e-3,
+                ddist['plasma']['jp_fraction_re']['data'][sli],
+                Elim[sli] * 1e-3,
+                cmap=plt.cm.viridis,
+                levels=np.r_[1, 2, 5, 7.5, 10, 15],
+                vmin=0.1,
+                vmax=20,
             )
 
-        ax.clabel(cs, cs.levels, fontsize=12)
+            # cases
+            for i0, (k0, v0) in enumerate(cases['case'].items()):
+                ax.plot(
+                    v0['Te']*1e-3,
+                    v0['jp_frac'],
+                    marker='*',
+                    markersize=8,
+                    markerfacecolor=v0['color'],
+                    color=v0['color'],
+                )
 
-        ax.set_xlim(0, ddist['plasma']['Te_eV']['data'].max()*1e-3)
-        ax.set_ylim(0, 1)
+            ax.clabel(cs, cs.levels, fontsize=12)
+
+            ax.set_xlim(0, ddist['plasma']['Te_eV']['data'].max()*1e-3)
+            ax.set_ylim(0, 1)
 
     # --------------
     # save
     # --------------
 
+    # pfe_save
+    pfe_save = ds._generic_check._check_var(
+        pfe_save, 'pfe_save',
+        types=(bool, str),
+        default=False,
+    )
+
+    # saving
     if pfe_save is not False:
-        if pfe_save is None:
+        if pfe_save is [None, True]:
             name = 'fig04_bremsstrahlung.png'
             if path_save is None:
                 path_save = _PATH_SAVE
