@@ -28,8 +28,8 @@ _PATH_SAVE = os.path.join(os.path.dirname(_PATH_HERE), 'figures')
 
 _PFE_D2CROSS_PHI = os.path.join(
     _PATH_INPUTS,
-    # 'd2cross_phi_Ee01eV-100MeV-80log_Eph1eV-100MeV-81log_nthetaph61_nthetae060_EH.npz',
-    'd2cross_phi_Ee01eV-100MeV-240log_Eph1eV-100MeV-241log_nthetaph61_nthetae060_EH.npz',
+    'd2cross_phi_Ee01eV-100MeV-80log_Eph1eV-100MeV-81log_nthetaph61_nthetae060_EH.npz',
+    # 'd2cross_phi_Ee01eV-100MeV-240log_Eph1eV-100MeV-241log_nthetaph61_nthetae060_EH.npz',
 )
 
 
@@ -59,9 +59,12 @@ def main(
     d2cross_phi=None,
     # dist
     ne_m3=None,
+    pnormW=None,
     Ekin_max_eV=None,
-    Te_eV=1e3 * np.linspace(0.1, 2.5, 25),
-    jp_fraction_re=np.linspace(0.025, 0.975, 39),
+    # Te_eV=1e3 * np.linspace(0.1, 2.5, 25),
+    Te_eV=1e3 * np.linspace(0.1, 2.5, 11),
+    # jp_fraction_re=np.linspace(0.025, 0.975, 39),
+    jp_fraction_re=np.linspace(0.1, 0.9, 9),
     # emiss
     E_ph_eV=None,
     # cases
@@ -101,6 +104,9 @@ def main(
     }
     if ne_m3 is not None:
         ddist['ne_m3'] = ne_m3
+
+    if pnormW is not None:
+        ddist['pnormW'] = pnormW
 
     if Ekin_max_eV is not None:
         if isinstance(Ekin_max_eV, (np.ndarray, tuple, list)):
