@@ -9,9 +9,10 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import astropy.units as asunits
 import datastock as ds
-
-
 import tofu as tf
+
+
+from ._savefig import main as savefig
 
 
 tfphysemis = tf.physics_tools.electrons.emission
@@ -27,7 +28,6 @@ tfphysemis = tf.physics_tools.electrons.emission
 _PATH_HERE = os.path.dirname(__file__)
 _PATH_PAPER = os.path.dirname(_PATH_HERE)
 _PATH_INPUTS = os.path.join(_PATH_PAPER, 'inputs')
-_PATH_SAVE = os.path.join(_PATH_PAPER, 'figures')
 
 
 # SPECTRAL MODELLING FILES
@@ -376,14 +376,10 @@ def main(
     # save
     # --------------
 
-    if pfe_save is not False:
-        if pfe_save is None:
-            name = f"{os.path.split(__file__)[-1][1:].replace('.py', '')}.png"
-            if path_save is None:
-                path_save = _PATH_SAVE
-            pfe_save = os.path.join(_PATH_SAVE, name)
-        fig.savefig(pfe_save, format='png', dpi=300)
-        msg = f"Saved figure in:\n\t{pfe_save}\n"
-        print(msg)
+    savefig(
+        fig=fig,
+        pfe_save=pfe_save,
+        path_save=path_save,
+    )
 
     return dax, demiss, ddist, dspect

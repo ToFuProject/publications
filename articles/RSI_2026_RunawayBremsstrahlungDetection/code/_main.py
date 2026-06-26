@@ -19,6 +19,7 @@ sys.path.pop(0)
 
 from ._fig01_cross import main as fig01
 from ._fig02_dist  import main as fig02
+from ._fig03_validate_ff  import main as fig03
 from ._fig04_bremsstrahlung import main as fig04
 from ._fig05_tokamak import main as fig05
 from ._fig06_responsivities import main as fig06
@@ -32,6 +33,7 @@ from ._fig06_responsivities import main as fig06
 
 def main(
     ne_m3=None,
+    pfe_save=None,
 ):
 
     # ---------------
@@ -41,6 +43,7 @@ def main(
     for fig in [fig01, fig02, fig04, fig05, fig06]:
         fig(
             ne_m3=ne_m3,
+            pfe_save=pfe_save,
         )
 
     return

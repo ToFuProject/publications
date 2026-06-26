@@ -10,6 +10,7 @@ import tofu as tf
 
 
 from ._fig02_dist import _DDIST
+from ._savefig import main as savefig
 
 
 tfphysemis = tf.physics_tools.electrons.emission
@@ -525,22 +526,10 @@ def main(
     # save
     # --------------
 
-    # pfe_save
-    pfe_save = ds._generic_check._check_var(
-        pfe_save, 'pfe_save',
-        types=(bool, str),
-        default=False,
+    savefig(
+        fig=fig,
+        pfe_save=pfe_save,
+        path_save=path_save,
     )
-
-    # saving
-    if pfe_save is not False:
-        if pfe_save is [None, True]:
-            name = 'fig04_bremsstrahlung.png'
-            if path_save is None:
-                path_save = _PATH_SAVE
-            pfe_save = os.path.join(_PATH_SAVE, name)
-        fig.savefig(pfe_save, format='png', dpi=300)
-        msg = f"Saved figure in:\n\t{pfe_save}\n"
-        print(msg)
 
     return dax, demiss, ddist, d2cross_phi

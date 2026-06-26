@@ -6,9 +6,12 @@ import astropy.units as asunits
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import datastock as ds
-
-
 import tofu as tf
+
+
+from ._savefig import main as savefig
+
+
 tfphysdist = tf.physics_tools.electrons.distribution
 
 
@@ -19,7 +22,6 @@ tfphysdist = tf.physics_tools.electrons.distribution
 
 
 _PATH_HERE = os.path.dirname(__file__)
-_PATH_SAVE = os.path.join(os.path.dirname(_PATH_HERE), 'figures')
 
 
 _DDIST = {
@@ -341,15 +343,11 @@ def main(
     # save
     # --------------
 
-    if pfe_save is not False:
-        if pfe_save is None:
-            name = 'fig02_distributions.png'
-            if path_save is None:
-                path_save = _PATH_SAVE
-            pfe_save = os.path.join(_PATH_SAVE, name)
-        fig.savefig(pfe_save, format='png', dpi=300)
-        msg = f"Saved figure in:\n\t{pfe_save}\n"
-        print(msg)
+    savefig(
+        fig=fig,
+        pfe_save=pfe_save,
+        path_save=path_save,
+    )
 
     return dax, ddist
 

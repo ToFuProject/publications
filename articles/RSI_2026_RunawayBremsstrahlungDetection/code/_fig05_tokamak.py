@@ -12,6 +12,9 @@ import datastock as ds
 import tofu as tf
 
 
+from ._savefig import main as savefig
+
+
 # #####################################################
 # #####################################################
 #       DEFAULTS
@@ -633,15 +636,11 @@ def main(
     # save
     # --------------
 
-    if pfe_save is not False:
-        if pfe_save is None:
-            name = 'fig05_tokamak.png'
-            if path_save is None:
-                path_save = _PATH_SAVE
-            pfe_save = os.path.join(_PATH_SAVE, name)
-        fig.savefig(pfe_save, format='png', dpi=300)
-        msg = f"Saved figure in:\n\t{pfe_save}\n"
-        print(msg)
+    savefig(
+        fig=fig,
+        pfe_save=pfe_save,
+        path_save=path_save,
+    )
 
     return dax
 
