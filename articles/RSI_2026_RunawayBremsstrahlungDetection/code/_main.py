@@ -21,8 +21,9 @@ from ._fig01_cross import main as fig01
 from ._fig02_dist  import main as fig02
 from ._fig03_validate_ff  import main as fig03
 from ._fig04_bremsstrahlung import main as fig04
-from ._fig05_tokamak import main as fig05
-from ._fig06_responsivities import main as fig06
+from ._fig05_emiss import main as fig05
+from ._fig06_tokamak import main as fig06
+from ._fig07_responsivities import main as fig07
 
 
 # #####################################################
