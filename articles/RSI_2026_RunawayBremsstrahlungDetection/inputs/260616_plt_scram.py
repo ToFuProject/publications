@@ -322,7 +322,7 @@ fig4, ax4 = plt.subplots(
 
 cmap = get_cmap('rainbow')
 norm = Normalize(
-    vmin=dscram['Te']['data'].min()/1e3, 
+    vmin=dscram['Te']['data'].min()/1e3,
     vmax=dscram['Te']['data'].max()/1e3,
     )
 

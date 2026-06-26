@@ -635,7 +635,7 @@ def main(
 
     if pfe_save is not False:
         if pfe_save is None:
-            name = 'fig03_tokamak.png'
+            name = 'fig05_tokamak.png'
             if path_save is None:
                 path_save = _PATH_SAVE
             pfe_save = os.path.join(_PATH_SAVE, name)
