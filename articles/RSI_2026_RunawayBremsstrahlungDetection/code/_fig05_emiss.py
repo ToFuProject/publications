@@ -1,15 +1,15 @@
-
-
-
 import os
 
 
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import datastock as ds
 import tofu as tf
 
 
+from ._load_spect import main as load_spect
+from ._fig04_bremsstrahlung import _PFE_D2CROSS_PHI
 from ._savefig import main as savefig
 
 
@@ -28,31 +28,6 @@ _PATH_PAPER = os.path.dirname(_PATH_HERE)
 _PATH_INPUTS = os.path.join(_PATH_PAPER, 'inputs')
 
 
-# SPECTRAL MODELLING FILES
-_LPFE_SPECT = [
-    ff for ff in os.listdir(_PATH_INPUTS)
-    if ff.endswith('_data.npz')
-    and any([ss in ff for ss in ['_SCRAM86_', '_FLYCHK_']])
-]
-_DPFE_SPECT = {
-    ff.split('_')[-2]: os.path.join(_PATH_INPUTS, ff)
-    for ff in _LPFE_SPECT
-}
-
-
-# CROSS-SECTION FILES
-_DPFE_DCROSS = {
-    'EH0': os.path.join(
-        _PATH_INPUTS,
-        'd2cross_phi_Ee01eV-100MeV-240log_Eph1eV-100MeV-241log_nthetaph61_nthetae060_EH.npz',
-    ),
-    'EH1': os.path.join(
-        _PATH_INPUTS,
-        'd2cross_phi_Ee01eV-100MeV-80log_Eph1eV-100MeV-81log_nthetaph61_nthetae060_EH.npz'
-    ),
-}
-
-
 # #####################################################
 # #####################################################
 #       Main
@@ -61,11 +36,13 @@ _DPFE_DCROSS = {
 
 def main(
     d2cross_phi='EH1',
-    elements='H',
+    dmix={
+        0: 'H',
+        1: {'H': 0.95, 'O': 0.04, 'Fe': 0.01},
+    },
     ne_m3=1e19,
-    Te_plot=None,
     # plot
-    figsize=(6, 8),
+    figsize=(15, 8),
     fontsize=14,
     # save
     path_save=None,
@@ -81,58 +58,249 @@ def main(
     # inputs
     # --------------
 
+    nmix = len(dmix)
+
+    # --------------
+    # load elements
+    # --------------
+
+    dplasma = {}
+    for ii in dmix.keys():
+        dplasma[ii] = load_spect(
+            dmix=dmix[ii],
+            ne_m3=ne_m3,
+        )
+
+    # extract
+    E_ph = dplasma[0]['common']['E_photon']['data']
+    Te = dplasma[0]['common']['Te']['data']
+    units = dplasma[0]['emiss_tot']['ff']['units']
+
+    # --------------
+    # integrated cross-section
+    # --------------
+
+    demiss, ddist, d2cross_phi = tfphysemis.get_xray_thin_integ_dist(
+        # ----------------
+        # cross-section
+        # tabulated d2cross_phi
+        d2cross_phi=d2cross_phi,
+        # d2cross_phi computation
+        E_ph_eV=E_ph_eV,
+        E_e0_eV=None,
+        E_e0_eV_npts=None,
+        theta_e0_vsB_npts=None,
+        phi_e0_vsB_npts=None,
+        theta_ph_vsB=None,
+        # inputs
+        Z=None,
+        # hypergeometric parameter
+        ninf=None,
+        source=None,
+        # integration parameters
+        nthetae=None,
+        ndphi=None,
+        # output customization
+        version_cross=None,
+        # save / load
+        save_d2cross_phi=False,
+        # ---------------------
+        # optional responsivity
+        dresponsivity=None,
+        plot_responsivity_integration=None,
+        # -----------
+        # verb
+        debug=False,
+        verb=True,
+        # ----------------
+        # electron distribution
+        **ddist,
+    )
+
     # --------------
     # prepare axes
     # --------------
 
     dmargin = {
-        'left': 0.13, 'right': 0.99,
-        'bottom': 0.10, 'top': 0.92,
-        'wspace': 0.25, 'hspace': 0.10,
+        'left': 0.06, 'right': 0.98,
+        'bottom': 0.06, 'top': 0.93,
+        'wspace': 0.25, 'hspace': 0.30,
     }
 
     fig = plt.figure(figsize=figsize)
 
-    gs = gridspec.GridSpec(ncols=1, nrows=2, **dmargin)
+    gs = gridspec.GridSpec(ncols=3, nrows=nmix, **dmargin)
     dax = {}
 
-    # --------------
-    # prepare axes
-    # --------------
+    # ----------------
+    # ax - spectra
+    # ----------------
+
+    ax0_spect = None
+    ax0_map = None
+    for ii in sorted(dmix.keys()):
+
+        ax = fig.add_subplot(
+            gs[ii, :2],
+            sharex=ax0_spect,
+            sharey=ax0_spect,
+            aspect='auto',
+        )
+        ax.set_ylabel(
+            r"$\epsilon$" + f' ({units})',
+            fontsize=fontsize,
+            fontweight='bold',
+        )
+        if ii == 0:
+            ax0_spect = ax
+        elif ii == nmix - 1:
+            ax.set_xlabel(
+                r"$E_{ph}$" + ' (keV)',
+                fontsize=fontsize,
+                fontweight='bold',
+            )
+        dax[f'spect_{ii}'] = ax
+
+        # ----------------
+        # ax - Elim
+        # ----------------
+
+        ax = fig.add_subplot(
+            gs_map[ii, 2:],
+            aspect='auto',
+            sharex=ax0,
+            sharey=ax0,
+        )
+        if ii == 0:
+            ax0_map = ax
+            ax.set_title(
+                tit,
+                fontsize=fontsize,
+                fontweight='bold',
+            )
+        elif ii == nmix - 1:
+            ax.set_xlabel('Te (keV)', fontsize=fontsize, fontweight='bold')
+        ax.set_ylabel('jp_frac', fontsize=fontsize, fontweight='bold')
+
+        dax[f'Elim_{ii}'] = ax
+
+    # ----------------
+    # check dax format
+
+    dax = ds._generic_check._check_dax(dax)
 
     # --------------
-    # ax - abs
+    # plot - spectra
+    # --------------
 
-    ax = fig.add_subplot(
-        gs[0, 0],
-        xscale='log',
-        yscale='log',
-        aspect='auto',
-    )
-    ax.set_xlabel(
-        r"$E_{ph}$ (keV)",
-        size=fontsize,
-        fontweight='bold',
-    )
-    ax.set_ylabel(
-        r"$\epsilon^{Max}_{ff}$" + f"  ({asunits.Unit(units)})",
-        size=fontsize,
-        fontweight='bold',
-    )
-    tit = (
-        "Validation of Bremstrahlung implemented from EH cross-section\n"
-        "Maxwellian distribution with  "
-        + r"$j_{P}$" + " = 0 A/m2,  "
-        + r"$n_e$" + f" = {ne_m3:1.0e}"
-    )
-    ax.set_title(
-        tit,
-        size=fontsize,
-        fontweight='bold',
-    )
+    for ii, vplasma in sorted(dplasma.keys()):
 
-    # store
-    dax['abs'] = {'handle': ax}
+        kax = f"spect_{ii}"
+        if dax.get(kax) is not None:
+            ax = dax[kax]['handle']
+
+            # ----------------------
+            # total emiss Maxwellian
+
+            emiss_tot = np.sum(
+                [vv['data'] for vv in plasma['emiss_tot'].values()],
+                axis=0,
+            )
+
+            ax.plot(
+                vplasma['common']['E_photon']['data'],
+                emiss_tot,
+                color=None,
+                ls='-',
+                lw=1,
+            )
+
+            # ---------
+            # ff - RE
+
+            # plot
+            ax.fill_between(
+                demiss['E_ph_eV']['data']*1e-3,
+                np.nanmin(emiss_E, axis=-1),
+                np.nanmax(emiss_E, axis=-1),
+                hatch=v0['hatch'],
+                facecolor='None',
+                alpha=0.5,
+                edgecolor=v0['color'],
+                ls='--' if kdist == 'RE' else '-',
+                label=f'{kdist}_{ic}',
+            )
+
+            ax.set_xscale('log')
+            ax.set_yscale('log')
+            ax.grid(True)
+
+            # Elim
+            iE = np.argmin(np.abs(demiss['E_ph_eV']['data'] - Elim[ic]))
+            ax.plot(
+                np.r_[Elim[ic], Elim[ic]] * 1e-3,
+                [emiss_E[iE, 0], 1e16],
+                color=v0['color'],
+                ls='--',
+                lw=1,
+                label=f"E_lim = {Elim[ic]*1e-3:3.1f} keV",
+            )
+
+            # text
+            trans = transforms.blended_transform_factory(
+                ax.transData,
+                ax.transAxes,
+            )
+            ax.text(
+                Elim[ic] * 1e-3,
+                1,
+                r"$E_{ph,lim}$" + f"\n = {Elim[ic] * 1e-3:2.1f} keV",
+                horizontalalignment='center',
+                verticalalignment='bottom',
+                fontsize=fontsize,
+                fontweight='bold',
+                color=v0['color'],
+                transform=trans,
+            )
+
+            ax.set_ylim(1e0, 1e16)
+            ax.set_xlim(1e-2, 2e4)
+
+    # --------------
+    # plot - Elim
+    # --------------
+
+    for ii in range(nEkin):
+        kax = f'Elim_{ii}'
+        if dax.get(kax) is not None:
+            ax = dax[kax]['handle']
+
+            sli = (ii, slice(None), slice(None))
+            cs = ax.contour(
+                ddist['plasma']['Te_eV']['data'][sli] * 1e-3,
+                ddist['plasma']['jp_fraction_re']['data'][sli],
+                Elim[sli] * 1e-3,
+                cmap=plt.cm.viridis,
+                levels=np.r_[1, 2, 5, 7.5, 10, 15],
+                vmin=0.1,
+                vmax=20,
+            )
+
+            # cases
+            for i0, (k0, v0) in enumerate(cases['case'].items()):
+                ax.plot(
+                    v0['Te']*1e-3,
+                    v0['jp_frac'],
+                    marker='*',
+                    markersize=8,
+                    markerfacecolor=v0['color'],
+                    color=v0['color'],
+                )
+
+            ax.clabel(cs, cs.levels, fontsize=12)
+
+            ax.set_xlim(0, ddist['plasma']['Te_eV']['data'].max()*1e-3)
+            ax.set_ylim(0, 1)
 
     # --------------
     # save
