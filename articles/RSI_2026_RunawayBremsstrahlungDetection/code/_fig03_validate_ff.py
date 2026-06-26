@@ -184,13 +184,31 @@ def main(
     c0 = np.abs(diff[iok] / emiss[iok])
     assert np.all(c0 < 1e-2)
 
+    # Interpolate
+    interp = np.full(emiss_ff.shape, np.nan)
+    for ind in np.ndindex(mean.shape[:-1]):
+        sli = ind + (slice(None),)
+        interp[sli] = 10**(np.interp(
+            np.log10(dcommon['E_photon']['data']),
+            np.log10(demiss['E_ph_eV']['data']),
+            np.log10(mean[sli]),
+        ))
+
+    # diff
+    emiss_min = np.minimum(interp, dspect[elements[0]]['ff']['data'])
+    iok = emiss_min > 0.
+    diff = np.full(interp.shape, np.nan)
+    diff[iok] = 100 * (
+        np.abs(interp - dspect[elements[0]]['ff']['data']) / emiss_min
+    )[iok]
+
     # --------------
     # prepare axes
     # --------------
 
     dmargin = {
         'left': 0.13, 'right': 0.99,
-        'bottom': 0.10, 'top': 0.88,
+        'bottom': 0.10, 'top': 0.92,
         'wspace': 0.25, 'hspace': 0.10,
     }
 
@@ -223,7 +241,7 @@ def main(
         fontweight='bold',
     )
     tit = (
-        "Validation of Bremstrahlung implementation from EH cross-section\n"
+        "Validation of Bremstrahlung implemented from EH cross-section\n"
         "Maxwellian distribution with  "
         + r"$j_{P}$" + " = 0 A/m2,  "
         + r"$n_e$" + f" = {ne_m3:1.0e}"
@@ -253,7 +271,7 @@ def main(
         fontweight='bold',
     )
     ax.set_ylabel(
-        "error  (%)",
+        "error  (\%)",
         size=fontsize,
         fontweight='bold',
     )
@@ -299,15 +317,20 @@ def main(
 
                 # ff
                 l0, = ax.loglog(
-                    demiss['E_ph_eV']['data']*1e-3,
-                    mean[sli],
+                    dcommon['E_photon']['data']*1e-3,
+                    interp[sli],
                     ls='--',
                     lw=1,
                     color=dcolor[ii],
                     # label=lab,
                 )
 
+        vmax = np.nanmax(np.maximum(vv['ff']['data'], interp))
+        vmax_plot = 10**np.ceil(np.log10(vmax))
+
         ax.legend()
+        ax.set_xlim(E_ph.min()*1e-3, E_ph.max()*1e-3)
+        ax.set_ylim(vmax_plot/1e15, vmax_plot)
 
     # ---------------
     # plot diff
@@ -328,39 +351,20 @@ def main(
             # slice
             sli = (ii, slice(None))
 
-            # interp
-            interp = 10**(np.interp(
-                np.log10(dcommon['E_photon']['data']),
-                np.log10(demiss['E_ph_eV']['data']),
-                np.log10(mean[sli]),
-            ))
-
-            # min
-            emiss_min = np.minimum(interp, vv['ff']['data'][sli])
-            iok = emiss_min > 0.
-            diff = np.full(interp.shape, np.nan)
-            diff[iok] = 100 * (
-                np.abs(interp - vv['ff']['data'][sli]) / emiss_min
-            )[iok]
-
             # loop on elements
             for kk, vv in dspect.items():
 
                 # SCRAM / FLYCHK
                 l0, = ax.loglog(
                     dcommon['E_photon']['data']*1e-3,
-                    diff,
+                    diff[sli],
                     ls='-',
                     lw=1,
                     color=dcolor[ii],
                     label=lab,
                 )
 
-        ax.legend()
-
-    # --------------
-    # add a, b, c, d, e
-    # --------------
+        ax.set_ylim(1e-4, 1e4)
 
     # --------------
     # save
