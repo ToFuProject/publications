@@ -12,6 +12,7 @@ import datastock as ds
 import tofu as tf
 
 
+from ._load_spect import main as load_spect
 from ._savefig import main as savefig
 
 
@@ -83,16 +84,6 @@ def main(
     # inputs
     # --------------
 
-    # elements
-    if isinstance(elements, str):
-        elements = [elements]
-    elements = tuple(ds._generic_check._check_var_iter(
-        elements, 'elements',
-        types=(list, tuple),
-        types_iter=str,
-        allowed=list(_DPFE_SPECT.keys()),
-    ))
-
     # d2cross_phi
     d2cross_phi = ds._generic_check._check_var(
         d2cross_phi, 'd2cross_phi',
@@ -106,54 +97,15 @@ def main(
     # load elements
     # --------------
 
-    dspect = {
-        kk: {
-            'file': np.load(
-                _DPFE_SPECT[kk],
-                allow_pickle=True,
-            )['arr_0'].tolist()
-        }
-        for kk in elements
-    }
+    dplasma = load_spect(
+        dmix='H',
+        ne_m3=ne_m3,
+    )
 
-    ni_m3 = ne_m3
-
-    # Extract Te
-    lc = ['Te', 'E_photon']
-    dcommon = {cc: {} for cc in lc}
-    for cc in lc:
-        ref = dspect[elements[0]]['file'][cc]['data']
-        for kk, vv in dspect.items():
-            assert np.allclose(vv['file'][cc]['data'], ref)
-        dcommon[cc] = dspect[elements[0]]['file'][cc]
-
-    # Compute emissivity
-    units0 = 'J*cm^3/s/eV/atom/electron'
-    units = "1 / (m3.s.eV.sr)"
-    E_ph = dcommon['E_photon']['data']
-    for kk, vv in dspect.items():
-        assert str(vv['file']['emis_ff']['units']).replace('$', '') == units0
-        if vv['file'].get('emis_ff_ChiantiPy') is not None:
-            uu = str(vv['file']['emis_ff_ChiantiPy']['units']).replace('$', '')
-            assert uu == units0
-            emiss_ff = vv['file']['emis_ff_ChiantiPy']['data'].squeeze()
-        else:
-            emiss_ff = vv['file']['emis_ff']['data']
-
-        # ph / m3 / s / eV / sr
-        emiss_ff = (
-            emiss_ff
-            * 1e-6    # cm3 => m3
-            / (E_ph[None, :] * scpct.e)  # J => ph
-            * ne_m3  # /electron => /m3
-            * ni_m3  # /atom => /m3
-            / (4*np.pi)  # => /sr
-        )
-
-        dspect[kk]['ff'] = {
-            'data': emiss_ff,
-            'units': units,
-        }
+    # extract
+    E_ph = dplasma['common']['E_photon']['data']
+    Te = dplasma['common']['Te']['data']
+    units = dplasma['emiss_tot']['ff']['units']
 
     # --------------
     # load cross
@@ -161,7 +113,7 @@ def main(
 
     demiss, ddist, d2cross_phi = tfphysemis.get_xray_thin_integ_dist(
         # dist
-        Te_eV=dcommon['Te']['data'],
+        Te_eV=Te,
         ne_m3=ne_m3,
         jp_Am2=0,
         Zeff=1,
@@ -171,7 +123,7 @@ def main(
         # tabulated d2cross_phi
         d2cross_phi=d2cross_phi,
         # d2cross_phi computation
-        E_ph_eV=dcommon['E_photon']['data'],
+        E_ph_eV=dplasma['common']['E_photon']['data'],
         # -----------
         # verb
         debug=False,
@@ -191,21 +143,21 @@ def main(
     assert np.all(c0 < 1e-2)
 
     # Interpolate
-    interp = np.full(emiss_ff.shape, np.nan)
+    interp = np.full(dplasma['emiss_tot']['ff']['data'].shape, np.nan)
     for ind in np.ndindex(mean.shape[:-1]):
         sli = ind + (slice(None),)
         interp[sli] = 10**(np.interp(
-            np.log10(dcommon['E_photon']['data']),
+            np.log10(E_ph),
             np.log10(demiss['E_ph_eV']['data']),
             np.log10(mean[sli]),
         ))
 
     # diff
-    emiss_min = np.minimum(interp, dspect[elements[0]]['ff']['data'])
+    emiss_min = np.minimum(interp, dplasma['emiss_tot']['ff']['data'])
     iok = emiss_min > 0.
     diff = np.full(interp.shape, np.nan)
     diff[iok] = 100 * (
-        np.abs(interp - dspect[elements[0]]['ff']['data']) / emiss_min
+        np.abs(interp - dplasma['emiss_tot']['ff']['data']) / emiss_min
     )[iok]
 
     # --------------
@@ -300,7 +252,7 @@ def main(
         # --------------
         # loop on Te
 
-        for ii, te in enumerate(dcommon['Te']['data']):
+        for ii, te in enumerate(dplasma['common']['Te']['data']):
 
             # label
             lab = r"$T_e$" + f" = {te*1e-3:3.2f} keV"
@@ -309,11 +261,11 @@ def main(
             sli = (ii, slice(None))
 
             # loop on elements
-            for kk, vv in dspect.items():
+            for kk, vv in dplasma['emiss'].items():
 
                 # SCRAM / FLYCHK
                 l0, = ax.loglog(
-                    dcommon['E_photon']['data']*1e-3,
+                    E_ph*1e-3,
                     vv['ff']['data'][sli],
                     ls='-',
                     lw=1,
@@ -323,7 +275,7 @@ def main(
 
                 # ff
                 l0, = ax.loglog(
-                    dcommon['E_photon']['data']*1e-3,
+                    E_ph*1e-3,
                     interp[sli],
                     ls='--',
                     lw=1,
@@ -349,7 +301,7 @@ def main(
         # --------------
         # loop on Te
 
-        for ii, te in enumerate(dcommon['Te']['data']):
+        for ii, te in enumerate(Te):
 
             # label
             lab = r"$T_e$" + f" = {te*1e-3:3.2f} keV"
@@ -358,11 +310,11 @@ def main(
             sli = (ii, slice(None))
 
             # loop on elements
-            for kk, vv in dspect.items():
+            for kk, vv in dplasma['emiss'].items():
 
                 # SCRAM / FLYCHK
                 l0, = ax.loglog(
-                    dcommon['E_photon']['data']*1e-3,
+                    E_ph*1e-3,
                     diff[sli],
                     ls='-',
                     lw=1,
@@ -383,4 +335,4 @@ def main(
         file=__file__,
     )
 
-    return dax, demiss, ddist, dspect
+    return dax, demiss, ddist, dplasma

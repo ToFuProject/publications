@@ -1,4 +1,5 @@
 from ._main import main
+from ._load_spect import main as load_spect
 from ._fig01_cross import main as fig01_cross
 from ._fig02_dist import main as fig02_dist
 from ._fig03_validate_ff import main as fig03_validate_ff
