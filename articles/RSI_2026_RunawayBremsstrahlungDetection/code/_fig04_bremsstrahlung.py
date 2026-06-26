@@ -530,6 +530,7 @@ def main(
         fig=fig,
         pfe_save=pfe_save,
         path_save=path_save,
+        file=__file__,
     )
 
     return dax, demiss, ddist, d2cross_phi
