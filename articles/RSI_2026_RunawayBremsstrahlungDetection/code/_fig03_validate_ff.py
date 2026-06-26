@@ -145,10 +145,13 @@ def main(
     # Interpolate
     interp = np.full(dplasma['emiss_tot']['ff']['data'].shape, np.nan)
     for ind in np.ndindex(mean.shape[:-1]):
-        sli = ind + (slice(None),)
-        interp[sli] = 10**(np.interp(
+        sli0 = ind + (slice(None),)
+        iok = mean[sli0] > 0.
+        sli = ind + (iok,)
+
+        interp[sli0] = 10**(np.interp(
             np.log10(E_ph),
-            np.log10(demiss['E_ph_eV']['data']),
+            np.log10(demiss['E_ph_eV']['data'][iok]),
             np.log10(mean[sli]),
         ))
 
@@ -157,8 +160,9 @@ def main(
     iok = emiss_min > 0.
     diff = np.full(interp.shape, np.nan)
     diff[iok] = 100 * (
-        np.abs(interp - dplasma['emiss_tot']['ff']['data']) / emiss_min
-    )[iok]
+        np.abs(interp - dplasma['emiss_tot']['ff']['data'])[iok]
+        / emiss_min[iok]
+    )
 
     # --------------
     # prepare axes
