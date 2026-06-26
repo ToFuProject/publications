@@ -133,10 +133,16 @@ def main(
     E_ph = dcommon['E_photon']['data']
     for kk, vv in dspect.items():
         assert str(vv['file']['emis_ff']['units']).replace('$', '') == units0
+        if vv['file'].get('emis_ff_ChiantiPy') is not None:
+            uu = str(vv['file']['emis_ff_ChiantiPy']['units']).replace('$', '')
+            assert uu == units0
+            emiss_ff = vv['file']['emis_ff_ChiantiPy']['data'].squeeze()
+        else:
+            emiss_ff = vv['file']['emis_ff']['data']
 
         # ph / m3 / s / eV / sr
         emiss_ff = (
-            vv['file']['emis_ff']['data']
+            emiss_ff
             * 1e-6    # cm3 => m3
             / (E_ph[None, :] * scpct.e)  # J => ph
             * ne_m3  # /electron => /m3
