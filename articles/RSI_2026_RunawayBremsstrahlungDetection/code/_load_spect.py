@@ -46,10 +46,39 @@ _NE = 1e19  # /m3
 def main(
     dmix=None,
     ne_m3=None,
-    # unused
-    **kwdargs,
 ):
     """ Extract ff, fb, bb emissivities from SCRAM / FLYCHK / CHIANTY data
+
+    Uses user-provided ne_m3 and concentrations (via dmix)
+    Uses the Te values foudn in the source files
+
+    Returns dplasma:
+    {
+        'concentration': {'H': float / array, 'Ni': float / array, ...},
+        'emiss': {
+            'H': {
+                'ff': {'data': array, 'units': str}},
+                'fb': {'data': array, 'units': str}},
+                'bb': {'data': array, 'units': str}},
+            },
+            ...
+            'Ni': {
+                'ff': {'data': array, 'units': str}},
+                'fb': {'data': array, 'units': str}},
+                'bb': {'data': array, 'units': str}},
+            },
+        },
+        'emiss_tot': {
+            'ff': {'data': array, 'units': str}},
+            'fb': {'data': array, 'units': str}},
+            'bb': {'data': array, 'units': str}},
+        },
+        'common': {
+            'Te': {'data': array, 'units': str},
+            'ne': {'data': array, 'units': str},
+            'E_photon': {'data': array, 'units': str},
+        },
+    }
 
     """
 
@@ -83,13 +112,17 @@ def main(
         dcommon[cc] = dfiles[lk[0]][cc]
 
     # ne_m3 vs Te
-    ne_m3, Te = _check_neTe(ne_m3, dcommon['Te']['data'])
+    ne_m3, dcommon['Te']['data'] = _check_neTe(ne_m3, dcommon['Te']['data'])
+    dcommon['ne'] = {
+        'data': ne_m3,
+        'units': '1/m3',
+    }
 
     # --------------
     # shapes
     # --------------
 
-    shape_Te = Te.shape
+    shape_Te = ne_m3.shape
     shape_conc = dmix[lk[0]].shape
     try:
         shape_plasma = np.broadcast_shapes(shape_Te, shape_conc)
@@ -119,7 +152,6 @@ def main(
     # load elements
     # --------------
 
-    dspect = {}
     units0 = 'J*cm^3/s/eV/atom/electron'
     units = "1 / (m3.s.eV.sr)"
     E_ph = dcommon['E_photon']['data']
