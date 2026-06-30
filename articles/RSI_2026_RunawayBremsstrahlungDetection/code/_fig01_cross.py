@@ -163,6 +163,7 @@ def main(
         size=fontsize,
         fontweight='bold',
     )
+    ax.set_xticks(np.r_[0, 45, 90, 135, 180])
 
     # store
     dax['theta_norm1'] = {'handle': ax, 'type': 'isolines'}

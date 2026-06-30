@@ -275,6 +275,7 @@ def main(
             ax.set_ylim(0, 1)
             ax0 = ax
 
+        ax.set_xticks(np.r_[0, 45, 90, 135, 180])
         dax[f'theta_{ii}_lin'] = ax
 
     # ----------------
