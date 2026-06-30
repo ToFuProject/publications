@@ -8,8 +8,7 @@ import datastock as ds
 import tofu as tf
 
 
-from ._load_spect import main as load_spect
-from ._fig04_bremsstrahlung import _PFE_D2CROSS_PHI
+from ._load_spect_anis import main as load_spect_anis
 from ._savefig import main as savefig
 
 
@@ -64,58 +63,22 @@ def main(
     # load elements
     # --------------
 
-    dplasma = {}
+    demiss = {}
     for ii in dmix.keys():
-        dplasma[ii] = load_spect(
+        demiss[ii] = load_spect_anis(
             dmix=dmix[ii],
             ne_m3=ne_m3,
+            d2cross_phi=d2cross_phi,
         )
 
     # extract
-    E_ph = dplasma[0]['common']['E_photon']['data']
-    Te = dplasma[0]['common']['Te']['data']
-    units = dplasma[0]['emiss_tot']['ff']['units']
+    E_ph = demiss[0]['common']['E_photon']['data']
+    Te = demiss[0]['common']['Te']['data']
+    units = demiss[0]['emiss_tot']['ff']['units']
 
     # --------------
     # integrated cross-section
     # --------------
-
-    demiss, ddist, d2cross_phi = tfphysemis.get_xray_thin_integ_dist(
-        # ----------------
-        # cross-section
-        # tabulated d2cross_phi
-        d2cross_phi=d2cross_phi,
-        # d2cross_phi computation
-        E_ph_eV=E_ph_eV,
-        E_e0_eV=None,
-        E_e0_eV_npts=None,
-        theta_e0_vsB_npts=None,
-        phi_e0_vsB_npts=None,
-        theta_ph_vsB=None,
-        # inputs
-        Z=None,
-        # hypergeometric parameter
-        ninf=None,
-        source=None,
-        # integration parameters
-        nthetae=None,
-        ndphi=None,
-        # output customization
-        version_cross=None,
-        # save / load
-        save_d2cross_phi=False,
-        # ---------------------
-        # optional responsivity
-        dresponsivity=None,
-        plot_responsivity_integration=None,
-        # -----------
-        # verb
-        debug=False,
-        verb=True,
-        # ----------------
-        # electron distribution
-        **ddist,
-    )
 
     # --------------
     # prepare axes

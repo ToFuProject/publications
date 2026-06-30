@@ -62,22 +62,28 @@ _CASES = {
 }
 
 
-# #####################################################
-# #####################################################
+_TE = 1e3 * np.linspace(0.1, 2.5, 25)
+_JP_FRAC = np.linspace(0.1, 0.9, 9)
+_EKIN_MAX_EV = np.r_[100e3, 10e6]
+_PNORMW = np.r_[0.1, 5]
+
+
+# ######################################
+# ######################################
 #       main
-# #####################################################
+# ######################################
 
 
 def main(
     d2cross_phi=None,
     # dist
     ne_m3=None,
-    pnormW=np.r_[0.1, 5],
-    Ekin_max_eV=np.r_[100e3, 10e6],
+    pnormW=None,
+    Ekin_max_eV=None,
     # Te_eV=1e3 * np.linspace(0.1, 2.5, 25),
-    Te_eV=1e3 * np.linspace(0.1, 2.5, 11),
+    Te_eV=None,
     # jp_fraction_re=np.linspace(0.025, 0.975, 39),
-    jp_fraction_re=np.linspace(0.1, 0.9, 9),
+    jp_fraction_re=None,
     # emiss
     E_ph_eV=None,
     # cases
@@ -106,6 +112,22 @@ def main(
         d2cross_phi = _PFE_D2CROSS_PHI
 
     # ------------
+    # inputs
+    # ------------
+
+    if Te_eV is None:
+        Te_eV = _TE
+
+    if jp_fraction_re is None:
+        jp_fraction_re = _JP_FRAC
+
+    if Ekin_max_eV is None:
+        Ekin_max_eV = _EKIN_MAX_EV
+
+    if pnormW is None:
+        pnormW = _PNORMW
+
+    # ------------
     # ddist
     # ------------
 
@@ -117,9 +139,6 @@ def main(
     }
     if ne_m3 is not None:
         ddist['ne_m3'] = ne_m3
-
-    if pnormW is not None:
-        ddist['pnormW'] = pnormW
 
     if Ekin_max_eV is not None:
         ddist['Ekin_max_eV'] = Ekin_max_eV
