@@ -1,4 +1,3 @@
-import os
 
 
 import numpy as np
@@ -20,18 +19,6 @@ tfphysemis = tf.physics_tools.electrons.emission
 # #####################################################
 #       DEFAULTS
 # #####################################################
-
-
-_PATH_HERE = os.path.dirname(__file__)
-_PATH_INPUTS = os.path.join(os.path.dirname(_PATH_HERE), 'inputs')
-_PATH_SAVE = os.path.join(os.path.dirname(_PATH_HERE), 'figures')
-
-
-_PFE_D2CROSS_PHI = os.path.join(
-    _PATH_INPUTS,
-    'd2cross_phi_Ee01eV-100MeV-80log_Eph1eV-100MeV-81log_nthetaph61_nthetae060_EH.npz',
-    # 'd2cross_phi_Ee01eV-100MeV-240log_Eph1eV-100MeV-241log_nthetaph61_nthetae060_EH.npz',
-)
 
 
 _CASES = {
@@ -60,12 +47,6 @@ _CASES = {
         'ls': ['-', '-', '-'],
     },
 }
-
-
-_TE = 1e3 * np.linspace(0.1, 2.5, 25)
-_JP_FRAC = np.linspace(0.1, 0.9, 9)
-_EKIN_MAX_EV = np.r_[100e3, 10e6]
-_PNORMW = np.r_[0.1, 5]
 
 
 # ######################################
@@ -116,6 +97,8 @@ def main(
     # --------------
 
     demiss, ddist = _load_spect_anis.main(
+        dmix='H',
+        # d2cross
         d2cross_phi=d2cross_phi,
         # dist
         ne_m3=ne_m3,
@@ -123,13 +106,12 @@ def main(
         Ekin_max_eV=Ekin_max_eV,
         Te_eV=Te_eV,
         jp_fraction_re=jp_fraction_re,
-        # emiss
-        E_ph_eV=None,
     )
 
-    units = demiss['RE']['ff']['units']
+    units = demiss['emiss']['RE']['ff']['units']
     ne = np.unique(ddist['plasma']['ne_m3']['data'])[0]
     jp = np.unique(ddist['plasma']['jp_Am2']['data'])[0]
+    nEkin = demiss['emiss']['maxwell']['ff']['data'].shape[0]
 
     tit = (
         r"$n_e$" + f" = {ne:1.0e} /m3\n"
@@ -145,12 +127,12 @@ def main(
     for ii, ind in enumerate(np.ndindex(shape)):
 
         sli_emiss = ind + (slice(None), 0)
-        emiss_RE = demiss['emiss']['RE']['emiss']['data'][sli_emiss]
-        emiss_max = demiss['emiss']['maxwell']['emiss']['data'][sli_emiss]
+        emiss_RE = demiss['emiss']['RE']['ff']['data'][sli_emiss]
+        emiss_max = demiss['emiss']['maxwell']['ff']['data'][sli_emiss]
 
         ilim = (emiss_RE > emiss_max)
         if np.any(ilim):
-            Elim[ind] = np.min(demiss['E_ph_eV']['data'][ilim])
+            Elim[ind] = np.min(demiss['E_ph']['data'][ilim])
 
     # --------------
     # prepare axes
@@ -307,11 +289,11 @@ def main(
 
             sli = ic + (slice(None), slice(None))
             for kdist in demiss['emiss'].keys():
-                emiss_E = demiss['emiss'][kdist]['emiss']['data'][sli]
+                emiss_E = demiss['emiss'][kdist]['ff']['data'][sli]
 
                 # plot
                 ax.fill_between(
-                    demiss['E_ph_eV']['data']*1e-3,
+                    demiss['E_ph']['data']*1e-3,
                     np.nanmin(emiss_E, axis=-1),
                     np.nanmax(emiss_E, axis=-1),
                     hatch=v0['hatch'],
@@ -337,7 +319,7 @@ def main(
                 )
 
             # Elim
-            iE = np.argmin(np.abs(demiss['E_ph_eV']['data'] - Elim[ic]))
+            iE = np.argmin(np.abs(demiss['E_ph']['data'] - Elim[ic]))
             ax.plot(
                 np.r_[Elim[ic], Elim[ic]] * 1e-3,
                 [emiss_E[iE, 0], 1e16],
@@ -376,11 +358,11 @@ def main(
             if dax.get(kax) is not None:
                 ax = dax[kax]['handle']
 
-                iE = np.argmin(np.abs(demiss['E_ph_eV']['data'] - cc))
+                iE = np.argmin(np.abs(demiss['E_ph']['data'] - cc))
                 sli = ic + (iE, slice(None))
 
                 for kdist in demiss['emiss'].keys():
-                    emiss_theta = demiss['emiss'][kdist]['emiss']['data'][sli]
+                    emiss_theta = demiss['emiss'][kdist]['ff']['data'][sli]
 
                     # plot
                     ax.plot(
@@ -408,11 +390,11 @@ def main(
             if dax.get(kax) is not None:
                 ax = dax[kax]['handle']
 
-                iE = np.argmin(np.abs(demiss['E_ph_eV']['data'] - cc))
+                iE = np.argmin(np.abs(demiss['E_ph']['data'] - cc))
                 sli = ic + (iE, slice(None))
 
                 for kdist in demiss['emiss'].keys():
-                    emiss_theta = demiss['emiss'][kdist]['emiss']['data'][sli]
+                    emiss_theta = demiss['emiss'][kdist]['ff']['data'][sli]
 
                     # plot
                     ax.semilogy(

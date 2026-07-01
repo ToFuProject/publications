@@ -9,8 +9,6 @@ import tofu as tf
 
 from ._load_spect import main as load_spect
 from ._fig02_dist import _DDIST
-from ._fig04_bremsstrahlung import _TE, _JP_FRAC, _EKIN_MAX_EV, _PNORMW
-from ._fig04_bremsstrahlung import _PFE_D2CROSS_PHI
 
 
 tfphysemis = tf.physics_tools.electrons.emission
@@ -26,6 +24,19 @@ tfphysemis = tf.physics_tools.electrons.emission
 _PATH_HERE = os.path.dirname(__file__)
 _PATH_PAPER = os.path.dirname(_PATH_HERE)
 _PATH_INPUTS = os.path.join(_PATH_PAPER, 'inputs')
+
+
+_PFE_D2CROSS_PHI = os.path.join(
+    _PATH_INPUTS,
+    'd2cross_phi_Ee01eV-100MeV-80log_Eph1eV-100MeV-81log_nthetaph61_nthetae060_EH.npz',
+    # 'd2cross_phi_Ee01eV-100MeV-240log_Eph1eV-100MeV-241log_nthetaph61_nthetae060_EH.npz',
+)
+
+
+_TE = 1e3 * np.linspace(0.1, 2.5, 25)
+_JP_FRAC = np.linspace(0.1, 0.9, 9)
+_EKIN_MAX_EV = np.r_[100e3, 10e6]
+_PNORMW = np.r_[0.1, 5]
 
 
 # #####################################################
@@ -145,7 +156,12 @@ def main(
     # ------------
     # safety check
 
-    assert np.allclose(Te, ddist['Te_eV'].ravel())
+    if Te.shape != ddist['Te_eV'].ravel().shape:
+        msg = "Te and ddist['Te_eV'] have different shapes!"
+        raise Exception(msg)
+    if not np.allclose(Te, ddist['Te_eV'].ravel()):
+        msg = "Te and ddist['Te_eV'] have different values!"
+        raise Exception(msg)
 
     # ------------
     # d2cross_phi
@@ -272,7 +288,7 @@ def main(
     demiss = {
         'emiss': {
             'maxwell': {
-                'ff_anis': {
+                'ff': {
                     'data': danis['maxwell'],
                     'units': units,
                 },
@@ -307,4 +323,4 @@ def main(
         'Ekin_max_eV': ddist['plasma']['Ekin_max_eV'],
     }
 
-    return demiss
+    return demiss, ddist
