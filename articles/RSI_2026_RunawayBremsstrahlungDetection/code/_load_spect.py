@@ -105,8 +105,23 @@ def main(
     dcommon = {cc: None for cc in lc}
     for cc in lc:
         ref = dfiles[lk[0]][cc]['data']
+        rshape = ref.shape
         for kk, vv in dfiles.items():
-            assert np.allclose(vv[cc]['data'], ref)
+            cc_shape = vv[cc]['data'].shape
+            if vv[cc]['data'].shape != ref.shape:
+                msg = (
+                    "Different shapes!\n"
+                    f"\t- dfiles['{kk}']['{cc}']['data'].shape: {cc_shape}\n"
+                    f"\t- dfiles['{lk[0]}']['{cc}']['data'].shape: {rshape}\n"
+                )
+                raise Exception(msg)
+            if not np.allclose(vv[cc]['data'], ref):
+                msg = (
+                    f"Common field '{cc}' not constant accross files!\n"
+                    f"\t- {ref}\n"
+                    f"\t- {vv[cc]['data']}\n"
+                )
+                raise Exception(msg)
         dcommon[cc] = dfiles[lk[0]][cc]
 
     # ne_m3 vs Te
@@ -125,6 +140,8 @@ def main(
     try:
         shape_plasma = np.broadcast_shapes(shape_Te, shape_conc)
         ne_m3 = np.broadcast_to(ne_m3, shape_plasma)
+        for k0, v0 in dmix.items():
+            dmix[k0] = np.broadcast_to(v0, shape_plasma)
     except Exception:
         msg = "Te and concentrations should be broadcastcable!"
         raise Exception(msg)
@@ -136,6 +153,21 @@ def main(
     sli_ne = (slice(None),) * len(shape_plasma) + (None,)
 
     # --------------
+    # Zeff
+    # --------------
+
+    # Zeff
+    Zeff = np.zeros(ne_m3.shape)
+    sli_Z = (None,) * len(shape_plasma) + (slice(None),)
+    sli_cc = (slice(None),) * len(shape_plasma) + (None,)
+    for k0, v0 in dfiles.items():
+        zz = np.arange(0, v0['Xz']['data'].shape[-1])
+        fz = v0['Xz']['data']
+        Zeff += np.sum(dmix[k0][sli_cc] * fz * zz[sli_Z]**2, axis=-1)
+
+    dcommon['Zeff'] = {'data': Zeff, 'units': None}
+
+    # --------------
     # dplasma
     # --------------
 
@@ -144,6 +176,7 @@ def main(
         'concentration': dmix,
         'emiss': {k0: {cc: None for cc in lemiss} for k0 in dmix.keys()},
         'common': dcommon,
+        'Zmean': {k0: v0['<Z>'] for k0, v0 in dfiles.items()},
     }
 
     # --------------
@@ -271,19 +304,21 @@ def _check_mix(
 
         # broadcastable
         try:
-            shape = np.broadcast_shapes(*[v0 for v0 in dmix.values()])
+            shape = np.broadcast_shapes(*[v0.shape for v0 in dmix.values()])
 
             # broadcast
             for k0, v0 in dmix.items():
                 dmix[k0] = np.broadcast_to(v0, shape)
 
-            # sum = 1
-            total = np.sum([v0 for v0 in dmix.values()], axis=0)
-            for k0, v0 in dmix.items():
-                dmix[k0] = v0 / total
-
         except Exception:
             dfail['dmisc'] = "values not broadcastable!"
+
+    # -------------
+    # sum = 1
+
+    total = np.sum([v0 for v0 in dmix.values()], axis=0)
+    for k0, v0 in dmix.items():
+        dmix[k0] = v0 / total
 
     # -----------
     # any error
@@ -300,6 +335,7 @@ def _check_mix(
             "All values will be normalized such that their sum = 1\n"
             "\nIdentified issues:\n"
             + "\n".join(lstr)
+            + f"\nProvided:\n{dmix}\n"
         )
         raise Exception(msg)
 

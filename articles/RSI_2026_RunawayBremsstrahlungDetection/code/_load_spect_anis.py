@@ -2,16 +2,18 @@ import os
 
 
 import numpy as np
+import scipy.interpolate as scpinterp
 import astropy.units as asunits
 import tofu as tf
-
-
-tfphysemis = tf.physics_tools.electrons.emission
 
 
 from ._load_spect import main as load_spect
 from ._fig02_dist import _DDIST
 from ._fig04_bremsstrahlung import _TE, _JP_FRAC, _EKIN_MAX_EV, _PNORMW
+from ._fig04_bremsstrahlung import _PFE_D2CROSS_PHI
+
+
+tfphysemis = tf.physics_tools.electrons.emission
 
 
 # #####################################################
@@ -93,13 +95,7 @@ def main(
     # ---------------------
 
     Te = dplasma['common']['Te']['data']
-
-    # ---------------
-    # get ion charges
-
-    # coll = sp.Collection()
-    # coll.add_ion(k0)
-    Z_eff = None
+    Z_eff = dplasma['common']['Zeff']['data']
 
     # ------------
     # inputs
@@ -151,11 +147,12 @@ def main(
 
     assert np.allclose(Te, ddist['Te_eV'].ravel())
 
-    # --------------
-    # integrated cross-section
-    # --------------
+    # ------------
+    # d2cross_phi
+    # ------------
 
-    import pdb; pdb.set_trace()
+    if d2cross_phi is None:
+        d2cross_phi = _PFE_D2CROSS_PHI
 
     # --------------
     # anisotropic
@@ -170,7 +167,7 @@ def main(
         # tabulated d2cross_phi
         d2cross_phi=d2cross_phi,
         # d2cross_phi computation
-        E_ph_eV=E_ph_eV,
+        E_ph_eV=None,
         E_e0_eV=None,
         E_e0_eV_npts=None,
         theta_e0_vsB_npts=None,
@@ -185,6 +182,89 @@ def main(
         **ddist,
     )
 
+    # add check units
+    units0 = dplasma['emiss_tot']['ff']['units']
+    units1 = demiss['emiss']['maxwell']['emiss']['units']
+    assert asunits.Unit(units0) == asunits.Unit(units1)
+    units = units0
+
+    # --------------
+    # shapes
+    # --------------
+
+    shape_Te = dplasma['common']['Te']['data'].shape
+    shape_plasma = ddist['plasma']['Te_eV']['data'].shape
+    assert shape_Te[0] == shape_plasma[1]
+
+    shape_emiss_anis = demiss['emiss']['maxwell']['emiss']['data'].shape
+    nEph1 = demiss['E_ph_eV']['data'].size
+    ntheta = demiss['theta_ph_vsB']['data'].size
+    shape_check = (nEkin, shape_Te[0], jp_fraction_re.size, nEph1, ntheta)
+    assert shape_emiss_anis == shape_check
+
+    # ----------------------
+    # add Zeff to emiss_anis
+    # ----------------------
+
+    # reshape Zeff
+    Zeff = dplasma['common']['Zeff']['data'][None, :, None, None, None]
+
+    # add
+    for k0, v0 in demiss['emiss'].items():
+        demiss['emiss'][k0]['emiss']['data'] = v0['emiss']['data'] * Zeff
+
+    # --------------
+    # uniformize
+    # --------------
+
+    E_ph0 = dplasma['common']['E_photon']['data']
+    E_ph1 = demiss['E_ph_eV']['data']
+    ilow = E_ph1 < E_ph0.min()
+    iup = E_ph1 > E_ph0.max()
+    E_ph = np.r_[E_ph1[ilow], E_ph0, E_ph1[iup]]
+
+    shape_new_anis = shape_emiss_anis[:-2] + (E_ph.size, ntheta)
+    shape_new_iso = (1, shape_Te[0], 1, E_ph.size, 1)
+
+    iin = np.r_[
+        np.zeros(ilow.sum(), dtype=bool),
+        np.ones(E_ph0.size, dtype=bool),
+        np.zeros(iup.sum(), dtype=bool),
+    ]
+    iout = ~iin
+
+    # ---------------------
+    # isotropic - 0-padding
+
+    diso = {}
+    sli_in = (slice(None),) * 3 + (iin, slice(None))
+    sli_broad = (None, slice(None), None, slice(None), None)
+    for ff in ['ff', 'fb', 'bb']:
+        diso[ff] = np.zeros(shape_new_iso, dtype=float)
+        diso[ff][sli_in] = dplasma['emiss_tot'][ff]['data'][sli_broad]
+
+    # ---------------------
+    # anisotropic: interpolate
+
+    danis = {}
+    sli_out = (slice(None),) * 3 + (~iin, slice(None))
+    iedges = (ilow | iup)
+    sli_edges = (slice(None),) * 3 + (iedges, slice(None))
+    for k0, v0 in demiss['emiss'].items():
+
+        # tabulated
+        danis[k0] = np.zeros(shape_new_anis, dtype=float)
+        danis[k0][sli_out] = v0['emiss']['data'][sli_edges]
+
+        # interpolated
+        danis[k0][sli_in] = scpinterp.make_interp_spline(
+            E_ph1,
+            v0['emiss']['data'],
+            k=1,
+            axis=-2,
+            check_finite=True,
+        )(E_ph0)
+
     # --------------
     # output
     # --------------
@@ -192,14 +272,39 @@ def main(
     demiss = {
         'emiss': {
             'maxwell': {
-                'ff': {},
-                'fb': dplasma['emiss_tot']['fb'],
-                'bb': dplasma['emiss_tot']['bb'],
+                'ff_anis': {
+                    'data': danis['maxwell'],
+                    'units': units,
+                },
+                'ff_iso': {
+                    'data': diso['ff'],
+                    'units': units,
+                },
+                'fb': {
+                    'data': diso['fb'],
+                    'units': units,
+                },
+                'bb': {
+                    'data': diso['bb'],
+                    'units': units,
+                },
             },
             'RE': {
-                'ff': {},
+                'ff': {
+                    'data': danis['RE'],
+                    'units': units,
+                },
             },
         },
+        'E_ph': {
+            'data': E_ph,
+            'units': 'eV',
+        },
+        'theta_ph_vsB': demiss['theta_ph_vsB'],
+        'Te': ddist['plasma']['Te_eV'],
+        'ne': ddist['plasma']['ne_m3'],
+        'jp_fraction_re': ddist['plasma']['jp_fraction_re'],
+        'Ekin_max_eV': ddist['plasma']['Ekin_max_eV'],
     }
 
     return demiss
