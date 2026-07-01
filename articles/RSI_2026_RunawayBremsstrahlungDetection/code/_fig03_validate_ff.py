@@ -4,56 +4,20 @@ import os
 
 
 import numpy as np
-import scipy.constants as scpct
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import astropy.units as asunits
 import datastock as ds
-import tofu as tf
 
 
-from ._load_spect import main as load_spect
+from . import _load_spect_anis
 from ._savefig import main as savefig
-
-
-tfphysemis = tf.physics_tools.electrons.emission
 
 
 # #####################################################
 # #####################################################
 #               DEFAULTS
 # #####################################################
-
-
-# PATHS
-_PATH_HERE = os.path.dirname(__file__)
-_PATH_PAPER = os.path.dirname(_PATH_HERE)
-_PATH_INPUTS = os.path.join(_PATH_PAPER, 'inputs')
-
-
-# SPECTRAL MODELLING FILES
-_LPFE_SPECT = [
-    ff for ff in os.listdir(_PATH_INPUTS)
-    if ff.endswith('_data.npz')
-    and any([ss in ff for ss in ['_SCRAM86_', '_FLYCHK_']])
-]
-_DPFE_SPECT = {
-    ff.split('_')[-2]: os.path.join(_PATH_INPUTS, ff)
-    for ff in _LPFE_SPECT
-}
-
-
-# CROSS-SECTION FILES
-_DPFE_DCROSS = {
-    'EH0': os.path.join(
-        _PATH_INPUTS,
-        'd2cross_phi_Ee01eV-100MeV-240log_Eph1eV-100MeV-241log_nthetaph61_nthetae060_EH.npz',
-    ),
-    'EH1': os.path.join(
-        _PATH_INPUTS,
-        'd2cross_phi_Ee01eV-100MeV-80log_Eph1eV-100MeV-81log_nthetaph61_nthetae060_EH.npz'
-    ),
-}
 
 
 # #####################################################
@@ -64,7 +28,6 @@ _DPFE_DCROSS = {
 
 def main(
     d2cross_phi='EH1',
-    elements='H',
     ne_m3=1e19,
     Te_plot=None,
     # plot
@@ -81,79 +44,25 @@ def main(
     """
 
     # --------------
-    # inputs
+    # demiss
     # --------------
 
-    # d2cross_phi
-    d2cross_phi = ds._generic_check._check_var(
-        d2cross_phi, 'd2cross_phi',
-        types=str,
-        allowed=list(_DPFE_DCROSS.keys()),
-        default='EH0',
-    )
-    d2cross_phi = _DPFE_DCROSS[d2cross_phi]
-
-    # --------------
-    # load elements
-    # --------------
-
-    dplasma = load_spect(
+    demiss, ddist = _load_spect_anis.main(
         dmix='H',
-        ne_m3=ne_m3,
-    )
-
-    # extract
-    E_ph = dplasma['common']['E_photon']['data']
-    Te = dplasma['common']['Te']['data']
-    units = dplasma['emiss_tot']['ff']['units']
-
-    # --------------
-    # load cross
-    # --------------
-
-    demiss, ddist, d2cross_phi = tfphysemis.get_xray_thin_integ_dist(
-        # dist
-        Te_eV=Te,
-        ne_m3=ne_m3,
-        jp_Am2=0,
-        Zeff=1,
-        jp_fraction_re=0,
-        # ----------------
-        # cross-section
-        # tabulated d2cross_phi
+        # d2cross
         d2cross_phi=d2cross_phi,
-        # d2cross_phi computation
-        E_ph_eV=dplasma['common']['E_photon']['data'],
-        # -----------
-        # verb
-        debug=False,
-        verb=True,
+        # dist
+        ne_m3=ne_m3,
+        pnormW=None,
+        Ekin_max_eV=None,
+        Te_eV=Te_eV,
+        jp_fraction_re=0.,
     )
 
-    # check units
-    units2 = demiss['emiss']['maxwell']['emiss']['units']
-    assert asunits.Unit(units) == asunits.Unit(units2)
-
-    # check isotropy
-    emiss = demiss['emiss']['maxwell']['emiss']['data']
-    mean = np.nanmean(emiss, axis=-1)
-    diff = emiss - mean[:, :, None]
-    iok = emiss > 0.
-    c0 = np.abs(diff[iok] / emiss[iok])
-    assert np.all(c0 < 1e-2)
-
-    # Interpolate
-    interp = np.full(dplasma['emiss_tot']['ff']['data'].shape, np.nan)
-    for ind in np.ndindex(mean.shape[:-1]):
-        sli0 = ind + (slice(None),)
-        iok = mean[sli0] > 0.
-        sli = ind + (iok,)
-
-        interp[sli0] = 10**(np.interp(
-            np.log10(E_ph),
-            np.log10(demiss['E_ph_eV']['data'][iok]),
-            np.log10(mean[sli]),
-        ))
+    units = demiss['emiss']['RE']['ff']['units']
+    ne = np.unique(ddist['plasma']['ne_m3']['data'])[0]
+    jp = np.unique(ddist['plasma']['jp_Am2']['data'])[0]
+    nEkin = demiss['emiss']['maxwell']['ff']['data'].shape[0]
 
     # diff
     emiss_min = np.minimum(interp, dplasma['emiss_tot']['ff']['data'])
