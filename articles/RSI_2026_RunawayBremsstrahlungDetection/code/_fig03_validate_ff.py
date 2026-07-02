@@ -156,11 +156,6 @@ def main(
         yscale='log',
         aspect='auto',
     )
-    ax.set_xlabel(
-        r"$E_{ph}$ (keV)",
-        size=fontsize,
-        fontweight='bold',
-    )
     ax.set_ylabel(
         r"$\epsilon^{Max}_{ff}$" + f"  ({asunits.Unit(units)})",
         size=fontsize,
