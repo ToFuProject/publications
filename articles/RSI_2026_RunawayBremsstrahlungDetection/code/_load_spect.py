@@ -3,8 +3,6 @@ import os
 
 import numpy as np
 import scipy.constants as scpct
-import astropy.units as asunits
-import datastock as ds
 
 
 # #####################################################
@@ -20,10 +18,12 @@ _PATH_INPUTS = os.path.join(_PATH_PAPER, 'inputs')
 
 
 # SPECTRAL MODELLING FILES
+_LTYPES = ['_SCRAM86_', '_CHIANTI_']    # '_FLYCHK_'
+_LTYPES = ['_SCRAM86_', '_FLYCHK_']    # '_CHIANTI_'
 _LPFE_SPECT = [
     ff for ff in os.listdir(_PATH_INPUTS)
     if ff.endswith('_data.npz')
-    and any([ss in ff for ss in ['_SCRAM86_', '_FLYCHK_']])
+    and any([ss.lower() in ff.lower() for ss in _LTYPES])
 ]
 _DPFE_SPECT = {
     ff.split('_')[-2]: os.path.join(_PATH_INPUTS, ff)
@@ -282,7 +282,7 @@ def _check_mix(
 
             # key
             if not (isinstance(k0, str) and k0 in lok):
-                dfail[k0] = "key not allowed {lok}"
+                dfail[k0] = f"key not allowed {lok}"
                 continue
 
             # value

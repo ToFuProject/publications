@@ -26,11 +26,18 @@ _PATH_PAPER = os.path.dirname(_PATH_HERE)
 _PATH_INPUTS = os.path.join(_PATH_PAPER, 'inputs')
 
 
-_PFE_D2CROSS_PHI = os.path.join(
-    _PATH_INPUTS,
-    'd2cross_phi_Ee01eV-100MeV-80log_Eph1eV-100MeV-81log_nthetaph61_nthetae060_EH.npz',
-    # 'd2cross_phi_Ee01eV-100MeV-240log_Eph1eV-100MeV-241log_nthetaph61_nthetae060_EH.npz',
-)
+def _D2CROSS_PHI_FN(nE, ntheta):
+    return (
+        f"d2cross_phi_Ee01eV-100MeV-{nE}log_Eph1eV-100MeV-{nE+1}log"
+        f"_nthetaph{ntheta+1}_nthetae0{ntheta}_EH.npz"
+    )
+
+
+_DPFE_D2CROSS_PHI = {
+    'EH0': os.path.join(_PATH_INPUTS, _D2CROSS_PHI_FN(80, 60)),
+    'EH1': os.path.join(_PATH_INPUTS, _D2CROSS_PHI_FN(240, 60)),
+}
+_D2CROSS_PHI = 'EH0'
 
 
 _TE = 1e3 * np.linspace(0.1, 2.5, 25)
@@ -49,10 +56,12 @@ def main(
     dmix=None,
     ne_m3=None,
     # ddist
-    Te_eV=None,
+    jp_Am2=None,
     jp_fraction_re=None,
     Ekin_max_eV=None,
     pnormW=None,
+    # intergation method
+    integration=None,
     # d2cross_phi
     d2cross_phi=None,
 ):
@@ -60,7 +69,7 @@ def main(
 
     Emissivities are broken down into 2 distributions
     - Maxwell:
-        - ff: anisotropic
+        - ff: anisotro'upper
         - fb: isotropic (from SCRAM / FLYCHK / CHIANTI)
         - bb: isotropic
     - RE:
@@ -105,24 +114,24 @@ def main(
     # extract Te and ddist
     # ---------------------
 
-    Te = dplasma['common']['Te']['data']
+    Te_eV = dplasma['common']['Te']['data']
     Z_eff = dplasma['common']['Zeff']['data']
 
     # ------------
     # inputs
     # ------------
 
-    if Te_eV is None:
-        Te_eV = _TE
-
     if jp_fraction_re is None:
         jp_fraction_re = _JP_FRAC
+    jp_fraction_re = np.atleast_1d(jp_fraction_re)
 
     if Ekin_max_eV is None:
         Ekin_max_eV = _EKIN_MAX_EV
+    Ekin_max_eV = np.atleast_1d(Ekin_max_eV)
 
     if pnormW is None:
         pnormW = _PNORMW
+    pnormW = np.atleast_1d(pnormW)
 
     # ------------
     # ddist
@@ -144,31 +153,26 @@ def main(
         ddist['pnormW'] = pnormW
 
     # shape
-    ddist['Ekin_max_eV'] = np.atleast_1d(ddist['Ekin_max_eV'])[:, None, None]
-    ddist['pnormW'] = np.atleast_1d(ddist['pnormW'])[:, None, None]
+    ddist['Ekin_max_eV'] = ddist['Ekin_max_eV'][:, None, None]
+    ddist['pnormW'] = ddist['pnormW'][:, None, None]
     if ddist['pnormW'].size != ddist['Ekin_max_eV'].size:
         raise Exception()
     ddist['Te_eV'] = Te_eV[None, :, None]
+    if jp_Am2 is not None:
+        ddist['jp_Am2'] = jp_Am2
     ddist['jp_fraction_re'] = jp_fraction_re[None, None, :]
 
     nEkin = ddist['Ekin_max_eV'].shape[0]
-
-    # ------------
-    # safety check
-
-    if Te.shape != ddist['Te_eV'].ravel().shape:
-        msg = "Te and ddist['Te_eV'] have different shapes!"
-        raise Exception(msg)
-    if not np.allclose(Te, ddist['Te_eV'].ravel()):
-        msg = "Te and ddist['Te_eV'] have different values!"
-        raise Exception(msg)
 
     # ------------
     # d2cross_phi
     # ------------
 
     if d2cross_phi is None:
-        d2cross_phi = _PFE_D2CROSS_PHI
+        d2cross_phi = _D2CROSS_PHI
+
+    if not d2cross_phi.endswith('.npz'):
+        d2cross_phi = _DPFE_D2CROSS_PHI[d2cross_phi]
 
     # --------------
     # anisotropic
@@ -189,6 +193,8 @@ def main(
         theta_e0_vsB_npts=None,
         phi_e0_vsB_npts=None,
         theta_ph_vsB=None,
+        # integration
+        integration=integration,
         # -----------
         # verb
         debug=False,
@@ -273,13 +279,27 @@ def main(
         danis[k0][sli_out] = v0['emiss']['data'][sli_edges]
 
         # interpolated
-        danis[k0][sli_in] = scpinterp.make_interp_spline(
-            E_ph1,
-            v0['emiss']['data'],
-            k=1,
-            axis=-2,
-            check_finite=True,
-        )(E_ph0)
+        iok = v0['emiss']['data'] > 0.
+        for ind in np.ndindex(v0['emiss']['data'].shape[:-2]):
+
+            sli = ind + (slice(None), slice(None))
+            iok = np.all(v0['emiss']['data'][sli] > 0, axis=-1)
+            if not np.any(iok):
+                continue
+            sli = ind + (iok, slice(None))
+
+            sli_inii = ind + (iin, slice(None))
+
+            danis[k0][sli_inii] = np.power(
+                10,
+                scpinterp.make_interp_spline(
+                    np.log10(E_ph1[iok]),
+                    np.log10(v0['emiss']['data'][sli]),
+                    k=1,
+                    axis=-2,
+                    check_finite=True,
+                )(np.log10(E_ph0)),
+            )
 
     # --------------
     # output
