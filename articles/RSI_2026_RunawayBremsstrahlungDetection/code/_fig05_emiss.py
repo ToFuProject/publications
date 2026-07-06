@@ -37,7 +37,7 @@ def main(
     # cases
     cases=None,
     # d2cross
-    d2cross_phi='EH1',
+    d2cross_phi=None,
     # dist
     ne_m3=None,
     pnormW=None,
@@ -87,8 +87,9 @@ def main(
 
     # extract
     # E_ph = demiss[0]['common']['E_photon']['data']
-    Te = demiss[0]['common']['Te']['data']
-    units = demiss[0]['emiss_tot']['ff']['units']
+    Te = ddist['plasma']['Te_eV']['data']
+    ne = np.unique(ddist['plasma']['ne_m3']['data'])[0]
+    units = demiss[0]['emiss']['maxwell']['ff']['units']
 
     # --------------
     # integrated cross-section
@@ -150,11 +151,6 @@ def main(
         )
         if ii == 0:
             ax0_map = ax
-            ax.set_title(
-                tit,
-                fontsize=fontsize,
-                fontweight='bold',
-            )
         elif ii == nmix - 1:
             ax.set_xlabel('Te (keV)', fontsize=fontsize, fontweight='bold')
         ax.set_ylabel('jp_frac', fontsize=fontsize, fontweight='bold')
