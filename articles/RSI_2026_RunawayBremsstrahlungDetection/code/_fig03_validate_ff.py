@@ -57,8 +57,8 @@ def main(
     error = ds._generic_check._check_var(
         error, 'error',
         types=str,
-        default='min',
-        allowed=['min', 'iso', 'anis']
+        default='iso',
+        allowed=['min', 'max', 'iso', 'anis']
     )
 
     # --------------
@@ -122,8 +122,10 @@ def main(
         emiss_ref = np.minimum(emiss_iso, emiss_anis)
     elif error == 'iso':
         emiss_ref = emiss_iso
-    else:
+    elif error == 'anis':
         emiss_ref = emiss_anis
+    else:
+        emiss_ref = np.maximum(emiss_iso, emiss_anis)
 
     iok = emiss_ref > 0.
     diff[iok] = 100 * np.abs(emiss_anis - emiss_iso)[iok] / emiss_ref[iok]

@@ -5,14 +5,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import datastock as ds
-import tofu as tf
 
 
-from ._load_spect_anis import main as load_spect_anis
+from . import _load_spect_anis
+from ._fig04_bremsstrahlung import _CASES
 from ._savefig import main as savefig
-
-
-tfphysemis = tf.physics_tools.electrons.emission
 
 
 # #####################################################
@@ -24,7 +21,6 @@ tfphysemis = tf.physics_tools.electrons.emission
 # PATHS
 _PATH_HERE = os.path.dirname(__file__)
 _PATH_PAPER = os.path.dirname(_PATH_HERE)
-_PATH_INPUTS = os.path.join(_PATH_PAPER, 'inputs')
 
 
 # #####################################################
@@ -34,12 +30,22 @@ _PATH_INPUTS = os.path.join(_PATH_PAPER, 'inputs')
 
 
 def main(
-    d2cross_phi='EH1',
     dmix={
-        0: 'H',
-        1: {'H': 0.95, 'O': 0.04, 'Fe': 0.01},
+        0: 'O',
+        1: {'O': 0.90, 'Fe': 0.01},
     },
-    ne_m3=1e19,
+    # cases
+    cases=None,
+    # d2cross
+    d2cross_phi='EH1',
+    # dist
+    ne_m3=None,
+    pnormW=None,
+    Ekin_max_eV=None,
+    # Te_eV=1e3 * np.linspace(0.1, 2.5, 25),
+    Te_eV=None,
+    # jp_fraction_re=np.linspace(0.025, 0.975, 39),
+    jp_fraction_re=None,
     # plot
     figsize=(15, 8),
     fontsize=14,
@@ -59,20 +65,29 @@ def main(
 
     nmix = len(dmix)
 
+    if cases is None:
+        cases = _CASES
+
     # --------------
     # load elements
     # --------------
 
     demiss = {}
     for ii in dmix.keys():
-        demiss[ii] = load_spect_anis(
+        demiss[ii], ddist = _load_spect_anis.main(
             dmix=dmix[ii],
-            ne_m3=ne_m3,
+            # d2cross
             d2cross_phi=d2cross_phi,
+            # dist
+            ne_m3=ne_m3,
+            pnormW=pnormW,
+            Ekin_max_eV=Ekin_max_eV,
+            Te_eV=Te_eV,
+            jp_fraction_re=jp_fraction_re,
         )
 
     # extract
-    E_ph = demiss[0]['common']['E_photon']['data']
+    # E_ph = demiss[0]['common']['E_photon']['data']
     Te = demiss[0]['common']['Te']['data']
     units = demiss[0]['emiss_tot']['ff']['units']
 
@@ -129,10 +144,10 @@ def main(
         # ----------------
 
         ax = fig.add_subplot(
-            gs_map[ii, 2:],
+            gs[ii, 2:],
             aspect='auto',
-            sharex=ax0,
-            sharey=ax0,
+            sharex=ax0_map,
+            sharey=ax0_map,
         )
         if ii == 0:
             ax0_map = ax
@@ -153,117 +168,58 @@ def main(
     dax = ds._generic_check._check_dax(dax)
 
     # --------------
-    # plot - spectra
+    # plot - cases
     # --------------
 
-    for ii, vplasma in sorted(dplasma.keys()):
+    Teu = np.unique(ddist['plasma']['Te_eV']['data'])
+    jp_fracu = np.unique(ddist['plasma']['jp_fraction_re']['data'])
+    Ekinu = np.unique(ddist['plasma']['Ekin_max_eV']['data'])
 
-        kax = f"spect_{ii}"
-        if dax.get(kax) is not None:
-            ax = dax[kax]['handle']
+    # loop on cases
+    for i0, (k0, v0) in enumerate(cases['case'].items()):
 
-            # ----------------------
-            # total emiss Maxwellian
+        # slice
+        Te = Teu[np.argmin(np.abs(Teu - v0['Te']))]
+        jpf = jp_fracu[np.argmin(np.abs(jp_fracu - v0['jp_frac']))]
+        Ekin = Ekinu[np.argmin(np.abs(Ekinu - v0['Ekin_max_eV']))]
+        ic = (
+            (ddist['plasma']['jp_fraction_re']['data'] == jpf)
+            & (ddist['plasma']['Te_eV']['data'] == Te)
+            & (ddist['plasma']['Ekin_max_eV']['data'] == Ekin)
+        )
+        assert ic.sum() == 1
+        ic = tuple([cc[0] for cc in ic.nonzero()])
 
-            emiss_tot = np.sum(
-                [vv['data'] for vv in plasma['emiss_tot'].values()],
-                axis=0,
-            )
+        # --------
+        # spectra
 
-            ax.plot(
-                vplasma['common']['E_photon']['data'],
-                emiss_tot,
-                color=None,
-                ls='-',
-                lw=1,
-            )
+        # loop on dmix
+        for ii in dmix.keys():
 
-            # ---------
-            # ff - RE
+            kax = f'spect_{ii}'
+            if dax.get(kax) is not None:
+                ax = dax[kax]['handle']
 
-            # plot
-            ax.fill_between(
-                demiss['E_ph_eV']['data']*1e-3,
-                np.nanmin(emiss_E, axis=-1),
-                np.nanmax(emiss_E, axis=-1),
-                hatch=v0['hatch'],
-                facecolor='None',
-                alpha=0.5,
-                edgecolor=v0['color'],
-                ls='--' if kdist == 'RE' else '-',
-                label=f'{kdist}_{ic}',
-            )
+                sli = ic + (slice(None), slice(None))
+                for kdist in demiss[ii]['emiss'].keys():
+                    emiss_E = demiss[ii]['emiss'][kdist]['ff']['data'][sli]
 
-            ax.set_xscale('log')
-            ax.set_yscale('log')
-            ax.grid(True)
+                    # plot
+                    ax.fill_between(
+                        demiss[ii]['E_ph']['data']*1e-3,
+                        np.nanmin(emiss_E, axis=-1),
+                        np.nanmax(emiss_E, axis=-1),
+                        hatch=v0['hatch'],
+                        facecolor='None',
+                        alpha=0.5,
+                        edgecolor=v0['color'],
+                        ls='--' if kdist == 'RE' else '-',
+                        label=f'{kdist}_{ic}',
+                    )
 
-            # Elim
-            iE = np.argmin(np.abs(demiss['E_ph_eV']['data'] - Elim[ic]))
-            ax.plot(
-                np.r_[Elim[ic], Elim[ic]] * 1e-3,
-                [emiss_E[iE, 0], 1e16],
-                color=v0['color'],
-                ls='--',
-                lw=1,
-                label=f"E_lim = {Elim[ic]*1e-3:3.1f} keV",
-            )
-
-            # text
-            trans = transforms.blended_transform_factory(
-                ax.transData,
-                ax.transAxes,
-            )
-            ax.text(
-                Elim[ic] * 1e-3,
-                1,
-                r"$E_{ph,lim}$" + f"\n = {Elim[ic] * 1e-3:2.1f} keV",
-                horizontalalignment='center',
-                verticalalignment='bottom',
-                fontsize=fontsize,
-                fontweight='bold',
-                color=v0['color'],
-                transform=trans,
-            )
-
-            ax.set_ylim(1e0, 1e16)
-            ax.set_xlim(1e-2, 2e4)
-
-    # --------------
-    # plot - Elim
-    # --------------
-
-    for ii in range(nEkin):
-        kax = f'Elim_{ii}'
-        if dax.get(kax) is not None:
-            ax = dax[kax]['handle']
-
-            sli = (ii, slice(None), slice(None))
-            cs = ax.contour(
-                ddist['plasma']['Te_eV']['data'][sli] * 1e-3,
-                ddist['plasma']['jp_fraction_re']['data'][sli],
-                Elim[sli] * 1e-3,
-                cmap=plt.cm.viridis,
-                levels=np.r_[1, 2, 5, 7.5, 10, 15],
-                vmin=0.1,
-                vmax=20,
-            )
-
-            # cases
-            for i0, (k0, v0) in enumerate(cases['case'].items()):
-                ax.plot(
-                    v0['Te']*1e-3,
-                    v0['jp_frac'],
-                    marker='*',
-                    markersize=8,
-                    markerfacecolor=v0['color'],
-                    color=v0['color'],
-                )
-
-            ax.clabel(cs, cs.levels, fontsize=12)
-
-            ax.set_xlim(0, ddist['plasma']['Te_eV']['data'].max()*1e-3)
-            ax.set_ylim(0, 1)
+                    ax.set_xscale('log')
+                    ax.set_yscale('log')
+                    ax.grid(True)
 
     # --------------
     # save
@@ -276,4 +232,4 @@ def main(
         file=__file__,
     )
 
-    return
+    return dax, demiss
