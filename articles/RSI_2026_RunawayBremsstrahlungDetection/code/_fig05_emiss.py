@@ -82,7 +82,6 @@ def main(
             ne_m3=ne_m3,
             pnormW=pnormW,
             Ekin_max_eV=Ekin_max_eV,
-            Te_eV=Te_eV,
             jp_fraction_re=jp_fraction_re,
         )
 
