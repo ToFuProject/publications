@@ -303,9 +303,9 @@ def main(
                     label=f'{kdist}_{ic}',
                 )
 
-                ax.set_xscale('log')
-                ax.set_yscale('log')
-                ax.grid(True)
+            ax.set_xscale('log')
+            ax.set_yscale('log')
+            ax.grid(True)
 
             # vlines
             for i1, cc in enumerate(cases['E_ph_eV']['val']):

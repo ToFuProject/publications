@@ -56,9 +56,13 @@ def main(
     dmix=None,
     ne_m3=None,
     # ddist
+    dominant=None,
+    Efield_par_Vm=None,     # pcrit
     jp_Am2=None,
     jp_fraction_re=None,
     Ekin_max_eV=None,
+    Ekin_min_eV=None,
+    sigmap=None,
     pnormW=None,
     # intergation method
     integration=None,
@@ -151,6 +155,15 @@ def main(
 
     if pnormW is not None:
         ddist['pnormW'] = pnormW
+
+    if Efield_par_Vm is not None:
+        ddist['Efield_par_Vm'] = Efield_par_Vm
+
+    if Ekin_min_eV is not None:
+        ddist['Ekin_min_eV'] = Ekin_min_eV
+
+    if sigmap is not None:
+        ddist['sigmap'] = sigmap
 
     # shape
     ddist['Ekin_max_eV'] = ddist['Ekin_max_eV'][:, None, None]
