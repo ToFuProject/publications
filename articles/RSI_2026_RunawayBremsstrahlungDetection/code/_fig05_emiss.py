@@ -8,6 +8,7 @@ import datastock as ds
 
 
 from . import _load_spect_anis
+from ._fig02_dist_type import _DDIST
 from ._fig04_bremsstrahlung import _CASES
 from ._savefig import main as savefig
 
@@ -21,6 +22,9 @@ from ._savefig import main as savefig
 # PATHS
 _PATH_HERE = os.path.dirname(__file__)
 _PATH_PAPER = os.path.dirname(_PATH_HERE)
+
+
+_RE = 'avalanche 100 keV'
 
 
 # #####################################################
@@ -40,12 +44,17 @@ def main(
     d2cross_phi=None,
     # dist
     ne_m3=None,
-    pnormW=None,
+    jp_Am2=None,
+    # RE
+    re=None,
+    dominant=None,
+    jp_fraction_re=np.linspace(0.025, 0.975, 5),
+    Efield_par_Vm=None,
+    Ekin_min_eV=None,
     Ekin_max_eV=None,
-    # Te_eV=1e3 * np.linspace(0.1, 2.5, 25),
-    Te_eV=None,
+    sigmap=None,
+    pnormW=0,
     # jp_fraction_re=np.linspace(0.025, 0.975, 39),
-    jp_fraction_re=None,
     # plot
     figsize=(15, 8),
     fontsize=14,
@@ -65,6 +74,24 @@ def main(
 
     nmix = len(dmix)
 
+    # Maxwell
+    kwd_max = {'ne_m3': ne_m3, 'jp_Am2': jp_Am2}
+
+    # RE
+    if re is None:
+        re = _RE
+    assert re in _DDIST['RE'].keys()
+    lRE = [
+        'dominant', 'jp_fraction_re', 'Efield_par_Vm',
+        'Efield_par_Vm', 'Ekin_max_eV', 'Ekin_min_eV',
+        'sigmap', 'pnormW'
+    ]
+    kwd_RE = {
+        kk: _DDIST['RE'][re][kk] if vv is None else vv
+        for kk, vv in locals().items()
+        if kk in lRE
+    }
+
     if cases is None:
         cases = _CASES
 
@@ -73,16 +100,15 @@ def main(
     # --------------
 
     demiss = {}
+    kwd = dict(kwd_max)
+    kwd.update(**kwd_RE)
     for ii in dmix.keys():
         demiss[ii], ddist = _load_spect_anis.main(
             dmix=dmix[ii],
             # d2cross
             d2cross_phi=d2cross_phi,
             # dist
-            ne_m3=ne_m3,
-            pnormW=pnormW,
-            Ekin_max_eV=Ekin_max_eV,
-            jp_fraction_re=jp_fraction_re,
+            **kwd,
         )
 
     # extract
@@ -92,8 +118,28 @@ def main(
     units = demiss[0]['emiss']['maxwell']['ff']['units']
 
     # --------------
-    # integrated cross-section
+    # Elim
     # --------------
+
+    shape = ddist['plasma']['Te_eV']['data'].shape
+    Elim = {kk: np.full(shape, np.nan) for kk in dmix.keys()}
+    for kk in dmix.keys():
+        for ind in np.ndindex(shape):
+
+            sli_anis = ind + (slice(None), 0)
+            sli_iso = ind[:-1] + (0, slice(None), 0)
+
+            emiss_max = (
+                demiss[kk]['emiss']['maxwell']['ff']['data'][sli_anis]
+                + demiss[kk]['emiss']['maxwell']['fb']['data'][sli_iso]
+                + demiss[kk]['emiss']['maxwell']['bb']['data'][sli_iso]
+            )
+
+            emiss_RE = demiss[kk]['emiss']['RE']['ff']['data'][sli_anis]
+
+            ilim = (emiss_RE > emiss_max)
+            if np.any(ilim):
+                Elim[kk][ind] = np.min(demiss[kk]['E_ph']['data'][ilim])
 
     # --------------
     # prepare axes
@@ -118,11 +164,18 @@ def main(
     ax0_map = None
     for ii in sorted(dmix.keys()):
 
+        tit = f"{ii}"
+
         ax = fig.add_subplot(
             gs[ii, :2],
             sharex=ax0_spect,
             sharey=ax0_spect,
             aspect='auto',
+        )
+        ax.set_title(
+            tit,
+            fontsize=fontsize,
+            fontweight='bold',
         )
         ax.set_ylabel(
             r"$\epsilon$" + f' ({units})',
@@ -137,6 +190,15 @@ def main(
                 fontsize=fontsize,
                 fontweight='bold',
             )
+        ax.text(
+            0.,
+            1.05,
+            ['(a)', '(b)'][ii],
+            horizontalalignment='left',
+            verticalalignment='bottom',
+            transform=ax.transAxes,
+        )
+
         dax[f'spect_{ii}'] = ax
 
         # ----------------
@@ -155,6 +217,14 @@ def main(
             ax.set_xlabel('Te (keV)', fontsize=fontsize, fontweight='bold')
         ax.set_ylabel('jp_frac', fontsize=fontsize, fontweight='bold')
 
+        ax.text(
+            0.,
+            1.05,
+            ['(c)', '(d)'][ii],
+            horizontalalignment='left',
+            verticalalignment='bottom',
+            transform=ax.transAxes,
+        )
         dax[f'Elim_{ii}'] = ax
 
     # ----------------
@@ -195,26 +265,93 @@ def main(
             if dax.get(kax) is not None:
                 ax = dax[kax]['handle']
 
-                sli = ic + (slice(None), slice(None))
-                for kdist in demiss[ii]['emiss'].keys():
-                    emiss_E = demiss[ii]['emiss'][kdist]['ff']['data'][sli]
+                sli_anis = ic + (slice(None), slice(None))
+                sli_iso = ic[:-1] + (0, slice(None), slice(None))
 
-                    # plot
-                    ax.fill_between(
-                        demiss[ii]['E_ph']['data']*1e-3,
-                        np.nanmin(emiss_E, axis=-1),
-                        np.nanmax(emiss_E, axis=-1),
-                        hatch=v0['hatch'],
-                        facecolor='None',
-                        alpha=0.5,
-                        edgecolor=v0['color'],
-                        ls='--' if kdist == 'RE' else '-',
-                        label=f'{kdist}_{ic}',
-                    )
+                # -----------
+                # total -maxwell
 
-                    ax.set_xscale('log')
-                    ax.set_yscale('log')
-                    ax.grid(True)
+                emiss_max = (
+                    demiss[ii]['emiss']['maxwell']['ff']['data'][sli_anis]
+                    + demiss[ii]['emiss']['maxwell']['fb']['data'][sli_iso]
+                    + demiss[ii]['emiss']['maxwell']['bb']['data'][sli_iso]
+                )
+
+                # plot
+                ax.fill_between(
+                    demiss[ii]['E_ph']['data']*1e-3,
+                    np.nanmin(emiss_max, axis=-1),
+                    np.nanmax(emiss_max, axis=-1),
+                    hatch=v0['hatch'],
+                    facecolor='None',
+                    alpha=0.5,
+                    edgecolor=v0['color'],
+                    ls='-',
+                    label=f'maxwell_{ic}',
+                )
+
+                # -----------
+                # ff - RE
+
+                emiss_RE = demiss[ii]['emiss']['RE']['ff']['data'][sli_anis]
+
+                # plot
+                ax.fill_between(
+                    demiss[ii]['E_ph']['data']*1e-3,
+                    np.nanmin(emiss_RE, axis=-1),
+                    np.nanmax(emiss_RE, axis=-1),
+                    hatch=v0['hatch'],
+                    facecolor='None',
+                    alpha=0.5,
+                    edgecolor=v0['color'],
+                    ls='--',
+                    label=f'RE_{ic}',
+                )
+
+                # decorate
+                vmax_log10 = np.ceil(np.log10(np.nanmax(emiss_max)))
+
+                ax.set_xscale('log')
+                ax.set_yscale('log')
+                ax.set_ylim(10**(vmax_log10 - 18), 10**vmax_log10)
+                ax.set_xlim(left=demiss[ii]['E_ph']['data'][0]*1e-3)
+                ax.grid(True)
+
+    # --------------
+    # plot - Elim
+    # --------------
+
+    for kk in dmix.keys():
+        kax = f'Elim_{kk}'
+        if dax.get(kax) is not None:
+            ax = dax[kax]['handle']
+
+            sli = (0, slice(None), slice(None))
+            cs = ax.contour(
+                ddist['plasma']['Te_eV']['data'][sli] * 1e-3,
+                ddist['plasma']['jp_fraction_re']['data'][sli],
+                Elim[kk][sli] * 1e-3,
+                cmap=plt.cm.viridis,
+                levels=np.r_[1, 2, 5, 7.5, 10, 15],
+                vmin=0.1,
+                vmax=20,
+            )
+
+            # cases
+            for i0, (k0, v0) in enumerate(cases['case'].items()):
+                ax.plot(
+                    v0['Te']*1e-3,
+                    v0['jp_frac'],
+                    marker='*',
+                    markersize=8,
+                    markerfacecolor=v0['color'],
+                    color=v0['color'],
+                )
+
+            ax.clabel(cs, cs.levels, fontsize=12)
+
+            ax.set_xlim(0, ddist['plasma']['Te_eV']['data'].max()*1e-3)
+            ax.set_ylim(0, 1)
 
     # --------------
     # save
