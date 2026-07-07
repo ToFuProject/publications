@@ -103,7 +103,7 @@ def main(
     kwd = dict(kwd_max)
     kwd.update(**kwd_RE)
     for ii in dmix.keys():
-        demiss[ii], ddist = _load_spect_anis.main(
+        demiss[ii], ddist, dmix[ii] = _load_spect_anis.main(
             dmix=dmix[ii],
             # d2cross
             d2cross_phi=d2cross_phi,
@@ -115,6 +115,7 @@ def main(
     # E_ph = demiss[0]['common']['E_photon']['data']
     Te = ddist['plasma']['Te_eV']['data']
     ne = np.unique(ddist['plasma']['ne_m3']['data'])[0]
+    jp = np.unique(ddist['plasma']['jp_Am2']['data'])[0]
     units = demiss[0]['emiss']['maxwell']['ff']['units']
 
     # --------------
@@ -160,14 +161,24 @@ def main(
     # ax - spectra
     # ----------------
 
+    tit0 = (
+        r"$n_e$" + f" = {ne:e} " + r"$/m^3$,  "
+        + r"$j_P$" + f" = {jp:e} " + r"$A/m^2$" + "\n"
+    )
+
     ax0_spect = None
     ax0_map = None
-    for ii in sorted(dmix.keys()):
+    for im, mix in enumerate(sorted(dmix.keys())):
 
-        tit = f"{ii}"
+        lk = list(dmix[mix].keys())
+        inds = np.argsort([dmix[mix][kk] for kk in lk])[::-1]
+        lstr = [f"{lk[ss]} {dmix[mix][lk[ss]]*100:3.1f} \%" for ss in inds]
+        tit = ",  ".join(lstr)
+        if ii == 0:
+            tit = tit0 + tit
 
         ax = fig.add_subplot(
-            gs[ii, :2],
+            gs[im, :2],
             sharex=ax0_spect,
             sharey=ax0_spect,
             aspect='auto',
@@ -182,9 +193,9 @@ def main(
             fontsize=fontsize,
             fontweight='bold',
         )
-        if ii == 0:
+        if im == 0:
             ax0_spect = ax
-        elif ii == nmix - 1:
+        elif im == nmix - 1:
             ax.set_xlabel(
                 r"$E_{ph}$" + ' (keV)',
                 fontsize=fontsize,
@@ -193,39 +204,43 @@ def main(
         ax.text(
             0.,
             1.05,
-            ['(a)', '(b)'][ii],
+            ['(a)', '(b)'][im],
             horizontalalignment='left',
             verticalalignment='bottom',
             transform=ax.transAxes,
         )
 
-        dax[f'spect_{ii}'] = ax
+        dax[f'spect_{im}'] = ax
 
         # ----------------
         # ax - Elim
         # ----------------
 
         ax = fig.add_subplot(
-            gs[ii, 2:],
+            gs[im, 2:],
             aspect='auto',
             sharex=ax0_map,
             sharey=ax0_map,
         )
-        if ii == 0:
+        if im == 0:
             ax0_map = ax
-        elif ii == nmix - 1:
-            ax.set_xlabel('Te (keV)', fontsize=fontsize, fontweight='bold')
-        ax.set_ylabel('jp_frac', fontsize=fontsize, fontweight='bold')
+        elif im == nmix - 1:
+            ax.set_xlabel(
+                r"$T_e$" + ' (keV)',
+                fontsize=fontsize,
+                fontweight='bold',
+            )
+        ax.set_ylabel(r"$F_{RE}$", fontsize=fontsize, fontweight='bold')
 
         ax.text(
             0.,
             1.05,
-            ['(c)', '(d)'][ii],
+            ['(c)', '(d)'][im],
             horizontalalignment='left',
             verticalalignment='bottom',
             transform=ax.transAxes,
         )
-        dax[f'Elim_{ii}'] = ax
+        dax[f'Elim_{im}'] = ax
 
     # ----------------
     # check dax format

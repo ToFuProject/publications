@@ -245,7 +245,7 @@ def main(
         for ke in lemiss
     }
 
-    return dplasma
+    return dplasma, dmix
 
 
 # #####################################################

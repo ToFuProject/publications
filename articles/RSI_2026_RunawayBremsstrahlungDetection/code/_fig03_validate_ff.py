@@ -65,7 +65,7 @@ def main(
     # demiss
     # --------------
 
-    demiss, ddist = _load_spect_anis.main(
+    demiss, ddist, dmix = _load_spect_anis.main(
         dmix='H',
         # d2cross
         d2cross_phi=d2cross_phi,
