@@ -48,7 +48,7 @@ def main(
     # RE
     re=None,
     dominant=None,
-    jp_fraction_re=np.linspace(0.025, 0.975, 5),
+    jp_fraction_re=np.linspace(0.025, 0.975, 11),
     Efield_par_Vm=None,
     Ekin_min_eV=None,
     Ekin_max_eV=None,
@@ -87,7 +87,7 @@ def main(
         'sigmap', 'pnormW'
     ]
     kwd_RE = {
-        kk: _DDIST['RE'][re][kk] if vv is None else vv
+        kk: _DDIST['RE'][re].get(kk) if vv is None else vv
         for kk, vv in locals().items()
         if kk in lRE
     }
@@ -147,9 +147,9 @@ def main(
     # --------------
 
     dmargin = {
-        'left': 0.06, 'right': 0.98,
+        'left': 0.05, 'right': 0.99,
         'bottom': 0.06, 'top': 0.93,
-        'wspace': 0.25, 'hspace': 0.30,
+        'wspace': 0.20, 'hspace': 0.20,
     }
 
     fig = plt.figure(figsize=figsize)
@@ -162,8 +162,8 @@ def main(
     # ----------------
 
     tit0 = (
-        r"$n_e$" + f" = {ne:e} " + r"$/m^3$,  "
-        + r"$j_P$" + f" = {jp:e} " + r"$A/m^2$" + "\n"
+        r"$n_e$" + f" = {ne:1.1e} " + r"$/m^3$,  "
+        + r"$j_P$" + f" = {jp:1.1e} " + r"$A/m^2$" + "\n"
     )
 
     ax0_spect = None
@@ -171,10 +171,11 @@ def main(
     for im, mix in enumerate(sorted(dmix.keys())):
 
         lk = list(dmix[mix].keys())
-        inds = np.argsort([dmix[mix][kk] for kk in lk])[::-1]
-        lstr = [f"{lk[ss]} {dmix[mix][lk[ss]]*100:3.1f} \%" for ss in inds]
+        lc = [np.unique(dmix[mix][kk])[0] for kk in lk]
+        inds = np.argsort(lc)[::-1]
+        lstr = [f"{lk[ss]} {lc[ss]*100:3.1f} \%" for ss in inds]
         tit = ",  ".join(lstr)
-        if ii == 0:
+        if im == 0:
             tit = tit0 + tit
 
         ax = fig.add_subplot(
@@ -347,7 +348,7 @@ def main(
                 ddist['plasma']['jp_fraction_re']['data'][sli],
                 Elim[kk][sli] * 1e-3,
                 cmap=plt.cm.viridis,
-                levels=np.r_[1, 2, 5, 7.5, 10, 15],
+                levels=np.r_[1, 2, 5, 7.5, 10, 15, 20],
                 vmin=0.1,
                 vmax=20,
             )
