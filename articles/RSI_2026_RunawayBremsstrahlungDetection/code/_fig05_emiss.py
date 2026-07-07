@@ -27,6 +27,12 @@ _PATH_PAPER = os.path.dirname(_PATH_HERE)
 _RE = 'avalanche 100 keV'
 
 
+_DDMIX = {
+    0: 'O',
+    1: {'O': 0.90, 'Fe': 0.10},
+}
+
+
 # #####################################################
 # #####################################################
 #       Main
@@ -34,10 +40,7 @@ _RE = 'avalanche 100 keV'
 
 
 def main(
-    dmix={
-        0: 'O',
-        1: {'O': 0.90, 'Fe': 0.10},
-    },
+    dmix=None,
     # cases
     cases=None,
     # d2cross
@@ -72,6 +75,8 @@ def main(
     # inputs
     # --------------
 
+    if dmix is None:
+        dmix = _DDMIX
     nmix = len(dmix)
 
     # Maxwell

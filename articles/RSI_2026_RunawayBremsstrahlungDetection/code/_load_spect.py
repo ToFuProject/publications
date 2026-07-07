@@ -273,11 +273,11 @@ def _check_mix(
     # ---------
     # each dict
 
+    dfail = {}
     lok = sorted(_DPFE_SPECT.keys())
     if isinstance(dmix, dict):
 
         # check each element
-        dfail = {}
         for k0, v0 in dmix.items():
 
             # key
