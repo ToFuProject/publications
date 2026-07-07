@@ -32,7 +32,7 @@ _PATH_PAPER = os.path.dirname(_PATH_HERE)
 def main(
     dmix={
         0: 'O',
-        1: {'O': 0.90, 'Fe': 0.01},
+        1: {'O': 0.90, 'Fe': 0.10},
     },
     # cases
     cases=None,

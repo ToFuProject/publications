@@ -36,7 +36,7 @@ def main(
     # d2cross
     d2cross_phi=None,
     # Eph
-    Eph=np.r_[0.1, 2, 20]*1e3,
+    Eph=np.r_[0.01, 2, 30]*1e3,
     # plot
     figsize=(5, 7),
     fontsize=14,
@@ -97,15 +97,21 @@ def main(
     # prepare axes
     # --------------
 
-    dmargin = {
-        'left': 0.06, 'right': 0.98,
-        'bottom': 0.06, 'top': 0.93,
+    dmargin_spect = {
+        'left': 0.15, 'right': 0.97,
+        'bottom': 0.06, 'top': 0.99,
         'wspace': 0.25, 'hspace': 0.30,
+    }
+    dmargin_theta = {
+        'left': 0.15, 'right': 0.97,
+        'bottom': 0.08, 'top': 0.60,
+        'wspace': 0.10, 'hspace': 0.10,
     }
 
     fig = plt.figure(figsize=figsize)
 
-    gs = gridspec.GridSpec(ncols=nE, nrows=3, **dmargin)
+    gs_spect = gridspec.GridSpec(ncols=1, nrows=3, **dmargin_spect)
+    gs_theta = gridspec.GridSpec(ncols=nE, nrows=2, **dmargin_theta)
     dax = {}
 
     # ----------------
@@ -113,7 +119,7 @@ def main(
     # ----------------
 
     ax = fig.add_subplot(
-        gs[0, :],
+        gs_spect[0, :],
         aspect='auto',
     )
     ax.set_ylabel(
@@ -126,20 +132,78 @@ def main(
         fontsize=fontsize,
         fontweight='bold',
     )
+    ax.text(
+        0.95,
+        0.95,
+        '(a)',
+        horizontalalignment='right',
+        verticalalignment='top',
+        transform=ax.transAxes,
+    )
+
     dax['spectra'] = ax
 
     # ----------------
     # ax - theta_rel
     # ----------------
 
-    ax0 = None
+    ax0_rel = None
+    for ie, ee in enumerate(Eph):
+
+        if ee < 1e3:
+            estr = f"{ee:3.0f} eV"
+        elif ee < 1e6:
+            estr = f"{ee*1e-3:3.0f} keV"
+        else:
+            estr = f"{ee*1e-6:3.0f} MeV"
+
+        ax = fig.add_subplot(
+            gs_theta[0, ie],
+            aspect='auto',
+            sharex=ax0_rel,
+            sharey=ax0_rel,
+        )
+        ax.set_title(
+            r"$E_{ph}$" + f" = {estr}",
+            fontsize=fontsize,
+            fontweight='bold',
+        )
+        if ie == 0:
+            ax0_rel = ax
+            ax.set_xlim(0, 180)
+            ax.set_ylim(0, 1)
+            ax.set_xticks([0, 45, 90, 135, 180])
+            ax.set_ylabel(
+                r"$\epsilon_{ff} / max(\epsilon_{ff})$",
+                fontsize=fontsize,
+                fontweight='bold',
+            )
+        else:
+            ax.tick_params(labelleft=False)
+
+        ax.text(
+            0.95,
+            0.95,
+            ['(b)', '(c)', '(d)'][ie],
+            horizontalalignment='right',
+            verticalalignment='top',
+            transform=ax.transAxes,
+        )
+        ax.tick_params(labelbottom=False)
+        dax[f'theta_rel_{ie}'] = ax
+
+    # ----------------
+    # ax - theta_abs
+    # ----------------
+
+    ax0_abs = None
     for ie, ee in enumerate(Eph):
 
         ax = fig.add_subplot(
-            gs[1, ie],
+            gs_theta[1, ie],
             aspect='auto',
-            sharex=ax0,
-            sharey=ax0,
+            sharex=ax0_rel,
+            sharey=ax0_abs,
         )
         ax.set_xlabel(
             r"$\theta_{ph,B}$" + " (deg)",
@@ -147,46 +211,24 @@ def main(
             fontweight='bold',
         )
         if ie == 0:
-            ax0 = ax
-            ax.set_xlim(0, 180)
-            ax.set_xticks([0, 45, 90, 135, 180])
+            ax0_abs = ax
             ax.set_ylabel(
                 r"$\epsilon_{ff}$" + f' ({units})',
                 fontsize=fontsize,
                 fontweight='bold',
             )
+        else:
+            ax.tick_params(labelleft=False)
 
-        dax[f'theta_{ie}'] = ax
-
-    # ----------------
-    # ax - abs
-    # ----------------
-
-    ax0 = None
-    for ie, ee in enumerate(Eph):
-
-        ax = fig.add_subplot(
-            gs[1, ie],
-            aspect='auto',
-            sharex=ax0,
-            sharey=ax0,
+        ax.text(
+            0.95,
+            0.95,
+            ['(e)', '(f)', '(g)'][ie],
+            horizontalalignment='right',
+            verticalalignment='top',
+            transform=ax.transAxes,
         )
-        ax.set_xlabel(
-            r"$\theta_{ph,B}$" + " (deg)",
-            fontsize=fontsize,
-            fontweight='bold',
-        )
-        if ie == 0:
-            ax0 = ax
-            ax.set_xlim(0, 180)
-            ax.set_xticks([0, 45, 90, 135, 180])
-            ax.set_ylabel(
-                r"$\epsilon_{ff}$" + f' ({units})',
-                fontsize=fontsize,
-                fontweight='bold',
-            )
-
-        dax[f'theta_{ie}'] = ax
+        dax[f'theta_abs_{ie}'] = ax
 
     # ----------------
     # check dax format
@@ -245,7 +287,7 @@ def main(
                 c='k',
                 ls='--',
                 lw=1,
-                label=f"E_ph = {ee*1e-3:3.1f} keV",
+                # label=f"E_ph = {ee*1e-3:3.1f} keV",
             )
 
         ax.set_xscale('log')
@@ -253,6 +295,7 @@ def main(
         ax.set_ylim(vmin, vmax)
         ax.set_xlim(1e-3, 1e5)
         ax.grid(True)
+        ax.legend(loc='lower left', fontsize=12)
 
     # --------------
     # plot vs theta
@@ -260,18 +303,21 @@ def main(
 
     for ie, ee in enumerate(Eph):
 
-        kax = f"theta_{ie}"
+        # indTe
+        indTe = np.argmin(np.abs(Teu - Te_eV))
+        Te_eV = ddist['plasma']['Te_eV']['data'][(0, indTe, 0)]
+
+        # indE
+        indE = np.argmin(np.abs(demiss[kdomref]['E_ph']['data'] - ee))
+        ee = demiss[kdomref]['E_ph']['data'][indE]
+        sli = (0, indTe, 0, indE, slice(None))
+
+        # -----------
+        # theta_rel
+
+        kax = f"theta_rel_{ie}"
         if dax.get(kax) is not None:
             ax = dax[kax]['handle']
-
-            # indTe
-            indTe = np.argmin(np.abs(Teu - Te_eV))
-            Te_eV = ddist['plasma']['Te_eV']['data'][(0, indTe, 0)]
-
-            # indE
-            indE = np.argmin(np.abs(demiss[kdomref]['E_ph']['data'] - ee))
-            ee = demiss[kdomref]['E_ph']['data'][indE]
-            sli = (0, indTe, 0, indE, slice(None))
 
             # plot
             for kdist in demiss.keys():
@@ -288,6 +334,31 @@ def main(
                     lw=1,
                     label=kdist,
                 )
+        ax.grid(True)
+
+        # -----------
+        # theta_abs
+
+        kax = f"theta_abs_{ie}"
+        if dax.get(kax) is not None:
+            ax = dax[kax]['handle']
+
+            # plot
+            for kdist in demiss.keys():
+
+                # data
+                emiss_RE = demiss[kdist]['emiss']['RE']['ff']['data'][sli]
+
+                # plot
+                ax.semilogy(
+                    demiss[kdomref]['theta_ph_vsB']['data']*180/np.pi,
+                    emiss_RE,
+                    c=_DDIST_PLOT[kdist]['color'],
+                    ls='-',
+                    lw=1,
+                    label=kdist,
+                )
+        ax.grid(True)
 
     # --------------
     # save
