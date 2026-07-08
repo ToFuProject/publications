@@ -199,7 +199,7 @@ def main(
                 linestyles='-',
                 levels=np.r_[0.01, 0.1, 0.2, 0.5, 0.8, 0.9, 0.99],
             )
-            ax.clabel(cs, cs.levels, fontsize=12, color='b')
+            ax.clabel(cs, cs.levels, fontsize=12)
 
             # ------------
             # decorate
