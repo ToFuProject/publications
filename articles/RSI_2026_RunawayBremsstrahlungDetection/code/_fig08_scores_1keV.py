@@ -280,11 +280,8 @@ def main(
             )
 
             # solid angle assuming cone
-            sang = scpinteg.trapezoid(
-                np.sin(theta[iang]),
-                x=theta[iang],
-                axis=-1,
-            ) * 2*np.pi
+            dcos = np.diff(np.cos(_DANGLES[kang][kdir])[::-1])
+            sang = 2*np.pi * dcos
 
             # loop on dist
             for kdist, vdist in demiss_integ[kresp].items():
@@ -317,32 +314,98 @@ def main(
                         }
 
     # --------------
+    # total_headon
+    # --------------
+
+    lresp = _LRESP
+    ldist = sorted(dsignal[lresp[0]].keys())
+
+    # detail
+    total_headon = np.zeros(len(lresp), dtype=float)
+    total_back = np.zeros(len(lresp), dtype=float)
+    for kdist in ldist:
+        for kemiss in sorted(dsignal[lresp[0]][kdist].keys()):
+            total_headon[:] += np.array([
+                dsignal[kresp][kdist][kemiss]['head-on']['data'].squeeze()
+                for kresp in lresp
+            ])
+            total_back[:] += np.array([
+                dsignal[kresp][kdist][kemiss]['back']['data'].squeeze()
+                for kresp in lresp
+            ])
+
+    # diff_RE
+    diff_RE = (
+        np.array([
+            dsignal[kresp]['RE']['ff']['head-on']['data'].squeeze()
+            for kresp in lresp
+        ])
+        - np.array([
+            dsignal[kresp]['RE']['ff']['back']['data'].squeeze()
+            for kresp in lresp
+        ])
+    )
+
+    # diff_max
+    diff_max = (
+        np.array([
+            dsignal[kresp]['maxwell']['ff']['head-on']['data'].squeeze()
+            for kresp in lresp
+        ])
+        - np.array([
+            dsignal[kresp]['maxwell']['ff']['back']['data'].squeeze()
+            for kresp in lresp
+        ])
+    )
+
+    # sanity check
+    error = (diff_RE + diff_max) - (total_headon - total_back)
+    error_percent = 100 * error / diff_RE
+    if np.any(error_percent > 0.01):
+        lstr = [
+            f"\t- {ss}: {error_percent[ii]:2.1e} %"
+            for ii, ss in enumerate(lresp)
+        ]
+        msg = (
+            "Something wrong with fb or bb:\n"
+            + "\n".join(lstr)
+        )
+        raise Exception(msg)
+
+    # --------------
     # prepare axes
     # --------------
 
-    dmargin = {
+    dmargin_theta = {
         'left': 0.08, 'right': 0.98,
         'bottom': 0.06, 'top': 0.99,
         'wspace': 0.25, 'hspace': 0.20,
     }
+    dmargin_perf = {
+        'left': 0.08, 'right': 0.98,
+        'bottom': 0.04, 'top': 0.65,
+        'wspace': 0.25, 'hspace': 0.08,
+    }
 
     fig = plt.figure(figsize=figsize)
 
-    gs = gridspec.GridSpec(ncols=1, nrows=3, **dmargin)
+    gs_theta = gridspec.GridSpec(ncols=1, nrows=3, **dmargin_theta)
+    gs_perf = gridspec.GridSpec(ncols=1, nrows=2, **dmargin_perf)
     dax = {}
 
     # --------------
     # axes - vs theta
     # --------------
 
-    ax = fig.add_subplot(gs[0, 0], aspect='auto')
+    ax = fig.add_subplot(gs_theta[0, 0], aspect='auto')
     ax.set_xlabel(
         r'$\theta_{ph,B}$ (deg)',
         fontsize=fontsize,
         fontweight='bold',
     )
     ax.set_ylabel(
-        r"$\epsilon_{ff}^{RE,\eta} / \max\left(\epsilon_{ff}^{RE,\eta}\right)$",
+        r"$\epsilon_{ff}^{RE,\eta} / "
+        r"\max\left(\epsilon_{ff}^{RE,\eta}\right)$",
         fontsize=fontsize,
         fontweight='bold',
     )
@@ -363,7 +426,7 @@ def main(
     # axes - Absolute
     # --------------
 
-    ax = fig.add_subplot(gs[1, 0], aspect='auto')
+    ax = fig.add_subplot(gs_perf[0, 0], aspect='auto')
     ax.set_ylabel(
         r"$\epsilon^{RE,\eta} / \max\left(\epsilon^{RE,\eta}\right)$",
         fontsize=fontsize,
@@ -379,8 +442,37 @@ def main(
         fontweight='bold',
         transform=ax.transAxes,
     )
+    ax.tick_params(labelbottom=False)
 
     dax['abs'] = ax
+
+    # --------------
+    # axes - rel
+    # --------------
+
+    ax0 = ax
+    ax = fig.add_subplot(
+        gs_perf[1, 0],
+        sharex=ax0,
+        aspect='auto',
+    )
+    ax.set_ylabel(
+        r"$\Delta M / M$",
+        fontsize=fontsize,
+        fontweight='bold',
+    )
+    ax.text(
+        0.01,
+        0.99,
+        '(c)',
+        horizontalalignment='left',
+        verticalalignment='top',
+        fontsize=fontsize,
+        fontweight='bold',
+        transform=ax.transAxes,
+    )
+
+    dax['rel'] = ax
 
     dax = ds._generic_check._check_dax(dax)
 
@@ -442,11 +534,8 @@ def main(
         # loop on resp
 
         weight_counts = {'head-on': {}, 'back': {}}
-        lresp = _LRESP
-        ldist = sorted(dsignal[lresp[0]].keys())
 
         # loop
-        total_headon = 0
         for kdir in weight_counts.keys():
 
             # detail
@@ -457,9 +546,6 @@ def main(
                         for kresp in lresp
                     ])
                     weight_counts[kdir][f"{kdist} {kemiss}"] = data
-
-                    if kdir == 'head-on':
-                        total_headon += data
 
             # normalize
             for kk, vv in weight_counts[kdir].items():
@@ -493,6 +579,51 @@ def main(
         ax.grid(True)
 
     # --------------
+    # plot rel
+    # --------------
+
+    kax = 'rel'
+    if dax.get(kax) is not None:
+        ax = dax[kax]['handle']
+
+        # ----------
+        # plot
+
+        # RE
+        ax.semilogy(
+            np.arange(len(lresp)) + 1,
+            diff_RE / total_headon,
+            marker='o',
+            ms=10,
+            ls='None',
+            c='k',
+            label='RE',
+        )
+
+        # maxwell
+        ax.semilogy(
+            np.arange(len(lresp)) + 1,
+            diff_max / total_headon,
+            marker='x',
+            ms=10,
+            ls='None',
+            c='k',
+            label='maxwellian',
+        )
+
+        vmin_log10 = np.floor(np.log10(min(
+            np.min(diff_RE / total_headon),
+            np.min(diff_max[diff_max > 0] / total_headon[diff_max > 0]),
+        )))
+
+        # decorate
+        ax.set_ylim(10**np.floor(vmin_log10), 1)
+        ax.set_xticks(np.arange(len(lresp)) + 1)
+        ax.set_xticklabels(lresp)
+        ax.legend()
+        ax.grid(True)
+
+    # --------------
     # save
     # --------------
 
@@ -510,4 +641,3 @@ def main(
 # #######################################
 #           Subroutine
 # #######################################
-
