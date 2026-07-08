@@ -131,9 +131,16 @@ def main(
     # jp = np.unique(ddist['plasma']['jp_Am2']['data'])[0]
     # units = demiss['emiss']['maxwell']['ff']['units']
 
-    indTe = np.argmin(np.abs(Teu - Te_eV))
-    Te_eV = Teu[indTe]
-    sli_emiss = (0, indTe, 0, slice(None), slice(None))
+    if Te_eV is None:
+        sli_emiss = (0, slice(None), slice(None), slice(None), slice(None))
+        axis_emiss = (0, 1, -1)
+        sli_resp = (None, None, slice(None), None)
+    else:
+        indTe = np.argmin(np.abs(Teu - Te_eV))
+        Te_eV = Teu[indTe]
+        sli_emiss = (0, indTe, 0, slice(None), slice(None))
+        axis_emiss = (-1,)
+        sli_resp = (slice(None), None)
 
     # -------------------
     # load responsivities
@@ -172,8 +179,8 @@ def main(
                 iok_emiss = (
                     (demiss['E_ph']['data'] > Eph_resp.min())
                     & (demiss['E_ph']['data'] < Eph_resp.max())
-                    & np.all(np.isfinite(data), axis=-1)
-                    & np.all(data > 0., axis=-1)
+                    & np.all(np.isfinite(data), axis=axis_emiss)
+                    & np.all(data > 0., axis=axis_emiss)
                 )
                 Eph_emiss = demiss['E_ph']['data'][iok_emiss]
 
@@ -202,32 +209,60 @@ def main(
                 else:
                     units = units * asunits.Unit('ph')
 
-                # interpolate  emissivity
+                # interpolate emissivity
                 if np.any(iok_emiss):
-                    sli = (iok_emiss, slice(None))
-                    emiss = np.power(
-                        10,
-                        scpinterp.make_interp_spline(
-                            np.log10(Eph_emiss),
-                            np.log10(data[sli]),
+                    sli = (slice(None),) * (data.ndim-2) + (iok_emiss, slice(None))
+
+                    if kemiss == 'bb':
+                        emiss = scpinterp.make_interp_spline(
+                            Eph_emiss,
+                            data[sli],
                             k=1,
-                            axis=0,
+                            axis=-2,
                             bc_type=None,
                             check_finite=True,
-                        )(np.log10(Eph)),
-                    )
+                        )(Eph)
+
+                    else:
+                        emiss = np.power(
+                            10,
+                            scpinterp.make_interp_spline(
+                                np.log10(Eph_emiss),
+                                np.log10(data[sli]),
+                                k=1,
+                                axis=-2,
+                                bc_type=None,
+                                check_finite=True,
+                            )(np.log10(Eph)),
+                        )
+
+                    # adjust out of bounds
+                    iout = (Eph < Eph_emiss[0]) | (Eph > Eph_emiss[-1])
+                    sli_out = sli[:-2] + (iout, slice(None))
+                    emiss[sli_out] = 0.
+
+                    # sanity check
+                    inan = (~np.isfinite(emiss)) | (emiss < 0.)
+                    if np.any(inan):
+                        msg = (
+                            "Interpolation prior to energy integration: "
+                            "non-finite values in:\n"
+                            f" \t- {kresp} {kdist} {kemiss}: {inan.sum()}"
+                        )
+                        raise Exception(msg)
 
                     # integrate
                     demiss_integ[kresp][kdist][kemiss] = {
                         'data': scpinteg.trapezoid(
-                            resp[:, None] * emiss,
+                            resp[sli_resp] * emiss,
                             x=Eph,
                             axis=-2,
                         ),
                         'units': units,
                     }
                 else:
-                    zeros = np.zeros(data.shape[1:], dtype=float)
+                    shape = data.shape[:-2] + data.shape[-1:]
+                    zeros = np.zeros(shape, dtype=float)
                     demiss_integ[kresp][kdist][kemiss] = {
                         'data': zeros,
                         'units': units,
@@ -259,7 +294,7 @@ def main(
             )
 
             # solid angle assuming cone
-            dcos = np.diff(np.cos(_DANGLES[kang][kdir])[::-1])
+            dcos = np.diff(np.cos(_DANGLES[kang][kdir])[::-1])[0]
             sang = 2*np.pi * dcos
 
             # loop on dist
@@ -268,15 +303,30 @@ def main(
                 # loop on emiss type
                 for kemiss, vemiss in vdist.items():
 
+                    ndim = vemiss['data'].ndim
+                    sli_emiss = (slice(None),) * (ndim - 1) + (iang,)
+                    sli_ang = (None,) * (ndim - 1) + (iang,)
+
                     # integrate
                     if vemiss['data'].shape[-1] == 1:
-                        data = vemiss['data'] * sang
+                        data = vemiss['data'][..., 0] * sang
                     else:
                         data = scpinteg.trapezoid(
-                            vemiss['data'][iang] * np.sin(theta[iang]),
+                            vemiss['data'][sli_emiss]
+                            * np.sin(theta[sli_ang]),
                             x=theta[iang],
                             axis=-1,
                         ) * 2*np.pi
+
+                    # sanity check
+                    inan = (~np.isfinite(data)) | (data < 0.)
+                    if np.any(inan):
+                        msg = (
+                            "Angle integration: non-finite values in:\n"
+                            f" \t- {kresp} {kdist} {kemiss} {kdir}: "
+                            f"{inan.sum()}"
+                        )
+                        raise Exception(msg)
 
                     # store
                     if idir == 0:
@@ -300,27 +350,28 @@ def main(
     ldist = sorted(dsignal[lresp[0]].keys())
 
     # detail
-    total_headon = np.zeros(len(lresp), dtype=float)
-    total_back = np.zeros(len(lresp), dtype=float)
+    shape = (len(lresp),) + data.shape
+    total_headon = np.zeros(shape, dtype=float)
+    total_back = np.zeros(shape, dtype=float)
     for kdist in ldist:
         for kemiss in sorted(dsignal[lresp[0]][kdist].keys()):
-            total_headon[:] += np.array([
-                dsignal[kresp][kdist][kemiss]['head-on']['data'].squeeze()
+            total_headon[...] += np.array([
+                dsignal[kresp][kdist][kemiss]['head-on']['data']
                 for kresp in lresp
             ])
-            total_back[:] += np.array([
-                dsignal[kresp][kdist][kemiss]['back']['data'].squeeze()
+            total_back[...] += np.array([
+                dsignal[kresp][kdist][kemiss]['back']['data']
                 for kresp in lresp
             ])
 
     # diff_RE
     diff_RE = (
         np.array([
-            dsignal[kresp]['RE']['ff']['head-on']['data'].squeeze()
+            dsignal[kresp]['RE']['ff']['head-on']['data']
             for kresp in lresp
         ])
         - np.array([
-            dsignal[kresp]['RE']['ff']['back']['data'].squeeze()
+            dsignal[kresp]['RE']['ff']['back']['data']
             for kresp in lresp
         ])
     )
@@ -328,18 +379,20 @@ def main(
     # diff_max
     diff_max = (
         np.array([
-            dsignal[kresp]['maxwell']['ff']['head-on']['data'].squeeze()
+            dsignal[kresp]['maxwell']['ff']['head-on']['data']
             for kresp in lresp
         ])
         - np.array([
-            dsignal[kresp]['maxwell']['ff']['back']['data'].squeeze()
+            dsignal[kresp]['maxwell']['ff']['back']['data']
             for kresp in lresp
         ])
     )
 
     # sanity check
     error = (diff_RE + diff_max) - (total_headon - total_back)
-    error_percent = 100 * error / diff_RE
+    error_percent = np.zeros(diff_RE.shape, dtype=float)
+    iok = (diff_RE > 0.) & np.isfinite(total_headon)
+    error_percent[iok] = 100 * error[iok] / diff_RE[iok]
     if np.any(error_percent > 0.01):
         lstr = [
             f"\t- {ss}: {error_percent[ii]:2.1e} %"
@@ -352,7 +405,7 @@ def main(
         raise Exception(msg)
 
     return (
-        demiss_integ, dsignal,
+        demiss_integ, dsignal, ddist,
         total_headon, diff_RE, diff_max,
         dang, theta,
         lresp, ldist,

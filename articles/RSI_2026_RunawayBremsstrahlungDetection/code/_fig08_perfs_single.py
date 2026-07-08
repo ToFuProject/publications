@@ -70,7 +70,7 @@ def main(
     # --------------
 
     (
-        demiss_integ, dsignal,
+        demiss_integ, dsignal, ddist,
         total_headon, diff_RE, diff_max,
         dang, theta,
         lresp, ldist,
