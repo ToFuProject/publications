@@ -1,21 +1,14 @@
-import copy
+import string
 
 
 import numpy as np
-import scipy.interpolate as scpinterp
-import scipy.integrate as scpinteg
-import scipy.constants as scpct
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-import astropy.units as asunits
 import datastock as ds
 
 
-from . import _load_spect_anis
-from ._fig02_dist_type import _DDIST
-from ._fig05_emiss import _RE, _DDMIX
-from ._fig07_responsivities import _PFE_RESPONSIVITIES
-from ._fig08_scores_1keV import _DANGLES, _LRESP
+from ._load_spect_anis import _JP_FRAC
+from . import _perfs
 from ._savefig import main as savefig
 
 
@@ -33,8 +26,6 @@ from ._savefig import main as savefig
 
 def main(
     dmix=None,
-    # cases
-    Te_eV=None,
     # d2cross
     d2cross_phi=None,
     # dist
@@ -49,9 +40,8 @@ def main(
     Ekin_max_eV=None,
     sigmap=None,
     pnormW=0,
-    # jp_fraction_re=np.linspace(0.025, 0.975, 39),
     # plot
-    figsize=(8, 10),
+    figsize=(15, 4),
     fontsize=14,
     # save
     path_save=None,
@@ -64,65 +54,172 @@ def main(
     # inputs
     # -----------
 
-    if dmix is None:
-        dmix = _DDMIX[1]
-
-    # Te
-    if Te_eV is None:
-        Te_eV = _TE
-
-    # jp_fraction_re
     if jp_fraction_re is None:
         jp_fraction_re = _JP_FRAC
 
-    # Maxwell
-    kwd_max = {'ne_m3': ne_m3, 'jp_Am2': jp_Am2}
+    # --------------
+    # compute
+    # --------------
 
-    # RE
-    re = ds._generic_check._check_var(
-        re, 're',
-        types=str,
-        default=_RE,
-        allowed=sorted(_DDIST['RE'].keys()),
+    (
+        demiss_integ, dsignal, ddist,
+        total_headon, diff_RE, diff_max,
+        dang, theta,
+        lresp, ldist,
+    ) = _perfs.main(
+        **locals(),
     )
 
-    lRE = [
-        'dominant', 'jp_fraction_re', 'Efield_par_Vm',
-        'Efield_par_Vm', 'Ekin_max_eV', 'Ekin_min_eV',
-        'sigmap', 'pnormW'
-    ]
-    kwd_RE = {
-        kk: _DDIST['RE'][re].get(kk) if vv is None else vv
-        for kk, vv in locals().items()
-        if kk in lRE
+    # --------------
+    # extract
+    # --------------
+
+    nresp = len(lresp)
+
+    # --------------
+    # prepare
+    # --------------
+
+    # dynamic range
+    dynamic = diff_RE / total_headon
+    bits = None
+
+    # RE vs Maxwell
+    RE_vs_max = 100 * diff_RE / (diff_max + diff_RE)
+
+    # --------------
+    # prepare axes
+    # --------------
+
+    dmargin = {
+        'left': 0.08, 'right': 0.98,
+        'bottom': 0.08, 'top': 0.99,
+        'wspace': 0.10, 'hspace': 0.20,
     }
 
+    fig = plt.figure(figsize=figsize)
+
+    gs = gridspec.GridSpec(ncols=nresp, nrows=1, **dmargin)
+    dax = {}
+
     # --------------
-    # load elements
+    # axes
     # --------------
 
-    demiss = {}
-    kwd = dict(kwd_max)
-    kwd.update(**kwd_RE)
-    demiss, ddist, dmix = _load_spect_anis.main(
-        dmix=dmix,
-        # d2cross
-        d2cross_phi=d2cross_phi,
-        # dist
-        **kwd,
+    ax0 = None
+    for iresp, kresp in enumerate(lresp):
+
+        ax = fig.add_subplot(
+            gs[0, iresp],
+            aspect='auto',
+            sharex=ax0,
+            sharey=ax0,
+        )
+
+        ax.set_xlabel(
+            r'$T_e$ (keV)',
+            fontsize=fontsize,
+            fontweight='bold',
+        )
+
+        ax.set_title(
+            kresp,
+            fontsize=fontsize,
+            fontweight='bold',
+        )
+
+        ax.text(
+            0.01,
+            0.99,
+            f"({string.ascii_lowercase[1 + iresp]})",
+            horizontalalignment='left',
+            verticalalignment='top',
+            fontsize=fontsize,
+            fontweight='bold',
+            transform=ax.transAxes,
+        )
+
+        if iresp == 0:
+            ax.set_ylabel(
+                r"$F_{RE}$",
+                fontsize=fontsize,
+                fontweight='bold',
+            )
+        else:
+            ax.tick_params(labelleft=False)
+
+        dax[kresp] = ax
+
+    # check
+    dax = ds._generic_check._check_dax(dax)
+
+    # --------------
+    # plot vs theta
+    # --------------
+
+    for iresp, kresp in enumerate(lresp):
+
+        kax = kresp
+        if dax.get(kax) is not None:
+            ax = dax[kax]['handle']
+
+            # -------------
+            # dynamic range
+
+            # levels
+            vmin_log10 = np.log10(np.nanmin(dynamic[iresp, ...]))
+            vmax_log10 = np.log10(np.nanmax(dynamic[iresp, ...]))
+            if vmax_log10 - vmin_log10 > 2:
+                nlog = np.arange(np.ceil(vmin_log10), np.floor(vmax_log10))
+                levels = np.power(10, nlog)
+            else:
+                levels = 10
+
+            # plot
+            sli = (0, slice(None), slice(None))
+            cs = ax.contour(
+                ddist['plasma']['Te_eV']['data'][sli] * 1e-3,
+                ddist['plasma']['jp_fraction_re']['data'][sli],
+                dynamic[iresp],
+                cmap=plt.cm.viridis,
+                levels=levels,
+            )
+            ax.clabel(cs, cs.levels, fontsize=12)
+
+            # cases
+            # for i0, (k0, v0) in enumerate(cases['case'].items()):
+                # pass
+                # ax.plot(
+                    # v0['Te']*1e-3,
+                    # v0['jp_frac'],
+                    # marker='*',
+                    # markersize=8,
+                    # markerfacecolor=v0['color'],
+                    # color=v0['color'],
+                # )
+
+            # ------------
+            # decorate
+
+            ax.set_xlim(0, 2.5)
+            ax.set_ylim(0, 1)
+            ax.grid(True)
+
+    # --------------
+    # save
+    # --------------
+
+    savefig(
+        fig=fig,
+        pfe_save=pfe_save,
+        path_save=path_save,
+        file=__file__,
     )
 
-    # extract
-    # E_ph = demiss[0]['common']['E_photon']['data']
-    Teu = np.unique(ddist['plasma']['Te_eV']['data'])
-    # ne = np.unique(ddist['plasma']['ne_m3']['data'])[0]
-    # jp = np.unique(ddist['plasma']['jp_Am2']['data'])[0]
-    # units = demiss['emiss']['maxwell']['ff']['units']
+    return dax, demiss_integ, dsignal
 
-    indTe = np.argmin(np.abs(Teu - Te_eV))
-    Te_eV = Teu[indTe]
-    sli_emiss = (0, indTe, 0, slice(None), slice(None))
 
-    # -------------------
-    # load responsivities
-    # -------------------
+# #######################################
+# #######################################
+#           Subroutine
+# #######################################

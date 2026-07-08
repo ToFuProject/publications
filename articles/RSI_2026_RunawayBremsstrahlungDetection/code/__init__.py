@@ -12,3 +12,4 @@ from ._fig05_emiss import main as fig05_emiss
 from ._fig06_tokamak import main as fig06_tokamak
 from ._fig07_responsivities import main as fig07_responsivities
 from ._fig08_perfs_single import main as fig08_perfs_single
+from ._fig09_perfs_scans import main as fig09_perfs_scans
