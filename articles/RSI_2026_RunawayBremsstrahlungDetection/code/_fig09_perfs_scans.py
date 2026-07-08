@@ -92,8 +92,8 @@ def main(
     # --------------
 
     dmargin = {
-        'left': 0.08, 'right': 0.98,
-        'bottom': 0.08, 'top': 0.99,
+        'left': 0.05, 'right': 0.98,
+        'bottom': 0.12, 'top': 0.95,
         'wspace': 0.10, 'hspace': 0.20,
     }
 
@@ -170,33 +170,36 @@ def main(
             vmin_log10 = np.log10(np.nanmin(dynamic[iresp, ...]))
             vmax_log10 = np.log10(np.nanmax(dynamic[iresp, ...]))
             if vmax_log10 - vmin_log10 > 2:
-                nlog = np.arange(np.ceil(vmin_log10), np.floor(vmax_log10))
-                levels = np.power(10, nlog)
+                levels = np.logspace(
+                    np.floor(vmin_log10),
+                    np.ceil(vmax_log10),
+                    6,
+                )
             else:
-                levels = 10
+                levels = 6
 
-            # plot
+            # plot dynamic range
             sli = (0, slice(None), slice(None))
             cs = ax.contour(
                 ddist['plasma']['Te_eV']['data'][sli] * 1e-3,
                 ddist['plasma']['jp_fraction_re']['data'][sli],
                 dynamic[iresp],
-                cmap=plt.cm.viridis,
+                colors='k',
+                linestyles='-',
                 levels=levels,
             )
-            ax.clabel(cs, cs.levels, fontsize=12)
+            ax.clabel(cs, cs.levels, fmt=lambda vv: f"{vv:2.1e}", fontsize=12)
 
-            # cases
-            # for i0, (k0, v0) in enumerate(cases['case'].items()):
-                # pass
-                # ax.plot(
-                    # v0['Te']*1e-3,
-                    # v0['jp_frac'],
-                    # marker='*',
-                    # markersize=8,
-                    # markerfacecolor=v0['color'],
-                    # color=v0['color'],
-                # )
+            # plot range
+            cs = ax.contour(
+                ddist['plasma']['Te_eV']['data'][sli] * 1e-3,
+                ddist['plasma']['jp_fraction_re']['data'][sli],
+                RE_vs_max[iresp],
+                colors='b',
+                linestyles='-',
+                levels=np.r_[0.01, 0.1, 0.2, 0.5, 0.8, 0.9, 0.99],
+            )
+            ax.clabel(cs, cs.levels, fontsize=12, color='b')
 
             # ------------
             # decorate
@@ -216,7 +219,7 @@ def main(
         file=__file__,
     )
 
-    return dax, demiss_integ, dsignal
+    return dax, demiss_integ, dsignal, dynamic
 
 
 # #######################################
