@@ -25,6 +25,14 @@ _PFE_RESPONSIVITIES = os.path.join(
 )
 
 
+_LRESP = [
+    'bolo',
+    'cvd_bare', 'cvd_filter',
+    'mesxr_11_keV',
+    'mehxr_60_keV',
+]
+
+
 # #####################################################
 # #####################################################
 #       main
@@ -98,6 +106,9 @@ def main(
 
         dme = {'mesxr': False, 'mehxr': False, 'cvd': False}
         for k0, v0 in dresp.items():
+
+            if k0 not in _LRESP:
+                continue
 
             # resp, color, lab
             lk = [kk for kk in dme.keys() if kk in k0]

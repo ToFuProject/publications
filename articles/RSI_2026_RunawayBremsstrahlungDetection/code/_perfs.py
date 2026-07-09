@@ -12,7 +12,7 @@ import datastock as ds
 from . import _load_spect_anis
 from ._fig02_dist_type import _DDIST
 from ._fig05_emiss import _RE, _DDMIX
-from ._fig07_responsivities import _PFE_RESPONSIVITIES
+from ._fig07_responsivities import _PFE_RESPONSIVITIES, _LRESP
 
 
 # #######################################
@@ -41,14 +41,6 @@ _DANGLES = {
         'alpha': 0.4,
     },
 }
-
-
-_LRESP = [
-    'bolo',
-    'cvd_bare', 'cvd_filter',
-    'mesxr_11_keV', 'mesxr_18_keV',
-    'mehxr_20_keV', 'mehxr_60_keV',
-]
 
 
 # #######################################

@@ -18,6 +18,34 @@ from ._savefig import main as savefig
 # #######################################
 
 
+_DLEVELS = {
+    'bolo': {
+        'dynamic': np.r_[1e-6, 1e-5, 5e-5, 1e-4, 1e-3],
+        'RE_vs_max': np.r_[10, 20, 30, 50, 70, 80],
+    },
+    'cvd_bare': {
+        'dynamic': np.r_[1e-5, 5e-5, 1e-4, 5e-4, 1e-3],
+        'RE_vs_max': np.r_[10, 20, 30, 50, 70, 80, 90],
+    },
+    'cvd_filter': {
+        'dynamic': np.r_[1e-4, 1e-3, 1e-2, 1e-1, 0.5],
+        'RE_vs_max': np.r_[10, 20, 30, 50, 70, 80, 90],
+    },
+    'spectro': {
+        'dynamic': 10,
+        'RE_vs_max': 10,
+    },
+    'mesxr_11_keV': {
+        'dynamic': np.r_[0.01, 0.1, 0.2, 0.3],
+        'RE_vs_max': 10,
+    },
+    'mehxr_60_keV': {
+        'dynamic': 10,
+        'RE_vs_max': 10,
+    },
+}
+
+
 # #######################################
 # #######################################
 #           Main
@@ -166,17 +194,9 @@ def main(
             # -------------
             # dynamic range
 
-            # levels
-            vmin_log10 = np.log10(np.nanmin(dynamic[iresp, ...]))
-            vmax_log10 = np.log10(np.nanmax(dynamic[iresp, ...]))
-            if vmax_log10 - vmin_log10 > 2:
-                levels = np.logspace(
-                    np.floor(vmin_log10),
-                    np.ceil(vmax_log10),
-                    6,
-                )
-            else:
-                levels = 6
+            # set levels dynamic
+            if _DLEVELS.get(kresp, {}).get('dynamic') is not None:
+                levels = _DLEVELS[kresp]['dynamic']
 
             # plot dynamic range
             sli = (0, slice(None), slice(None))
@@ -190,6 +210,10 @@ def main(
             )
             ax.clabel(cs, cs.levels, fmt=lambda vv: f"{vv:2.1e}", fontsize=12)
 
+            # set levels RE_vs_max
+            if _DLEVELS.get(kresp, {}).get('RE_vs_max') is not None:
+                levels = _DLEVELS[kresp]['RE_vs_max']
+
             # plot range
             cs = ax.contour(
                 ddist['plasma']['Te_eV']['data'][sli] * 1e-3,
@@ -197,7 +221,7 @@ def main(
                 RE_vs_max[iresp],
                 colors='b',
                 linestyles='-',
-                levels=np.r_[0.01, 0.1, 0.2, 0.5, 0.8, 0.9, 0.99],
+                levels=levels,
             )
             ax.clabel(cs, cs.levels, fontsize=12)
 
@@ -219,7 +243,11 @@ def main(
         file=__file__,
     )
 
-    return dax, demiss_integ, dsignal, dynamic
+    return (
+        dax, demiss_integ, dsignal,
+        total_headon, diff_RE, diff_max,
+        dynamic, RE_vs_max,
+    )
 
 
 # #######################################
