@@ -86,7 +86,7 @@ _DDIST_PLOT = {
 def main(
     # plot
     figsize=(5, 7),
-    fontsize=12,
+    fontsize=14,
     # save
     path_save=None,
     pfe_save=None,
@@ -294,6 +294,14 @@ def main(
     dax['1d'] = ax
 
     dax = ds._generic_check._check_dax(dax)
+
+    # ticklabels size
+    for kax, vax in dax.items():
+        dax[kax]['handle'].tick_params(
+            axis='both',
+            which='major',
+            labelsize=fontsize - 1,
+        )
 
     # ------------
     # plot 1d

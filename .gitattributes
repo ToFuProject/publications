@@ -15,3 +15,4 @@ articles/RSI_2026_RunawayBremsstrahlungDetection/inputs/TFG_Config_ExpSPARC_SPAR
 articles/RSI_2026_RunawayBremsstrahlungDetection/inputs/Inversion_BOLO_DMS_ptcam_dvezinet_20260709-205535.npz filter=lfs diff=lfs merge=lfs -text
 articles/RSI_2026_RunawayBremsstrahlungDetection/inputs/HXR_MPP200.png filter=lfs diff=lfs merge=lfs -text
 articles/RSI_2026_RunawayBremsstrahlungDetection/inputs/HXR_MPP200_zoom.png filter=lfs diff=lfs merge=lfs -text
+articles/RSI_2026_RunawayBremsstrahlungDetection/code/_fig03_validate_ff.py filter=lfs diff=lfs merge=lfs -text
