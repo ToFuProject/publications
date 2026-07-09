@@ -84,6 +84,8 @@ _DDIST_PLOT = {
 
 
 def main(
+    # maxwell
+    jp_Am2=None,
     # plot
     figsize=(5, 7),
     fontsize=14,
@@ -112,9 +114,12 @@ def main(
     ddist = {}
     for kdist, vdist in _DDIST['RE'].items():
 
-        kwd = _DDIST['maxwell']
+        kwd = dict(_DDIST['maxwell'])
         kwd.update(**vdist)
         kwd.update(**_DDIST['coords'])
+
+        if jp_Am2 is not None:
+            kwd['jp_Am2'] = jp_Am2
 
         ddist[kdist] = tfphysdist.get_distribution(**kwd)
 
@@ -122,7 +127,7 @@ def main(
     lip = [v0['dist']['RE']['integ_jp']['data'] for v0 in ddist.values()]
     assert np.allclose(lip, lip[0])
 
-    # sanity check - Maxwell
+    # sanity check - Maxwell all the same
     lMax = np.array([
         v0['dist']['maxwell']['dist']['data'] for v0 in ddist.values()
     ])
@@ -169,6 +174,8 @@ def main(
     for dom in ddist.keys():
 
         Ekin_max = ddist[dom]['plasma']['Ekin_max_eV']['data']
+        if np.allclose(Ekin_max, 0.):
+            Ekin_max = np.full(Ekin_max.shape, 1e7)
         vminRE_2d = np.inf
         for ind in np.ndindex(d1d[dom].shape[:-1]):
             indE = np.argmin(np.abs(
@@ -235,9 +242,9 @@ def main(
     # --------------
 
     dmargin = {
-        'left': 0.12, 'right': 0.98,
-        'bottom': 0.06, 'top': 0.93,
-        'wspace': 0.25, 'hspace': 0.10,
+        'left': 0.13, 'right': 0.97,
+        'bottom': 0.07, 'top': 0.93,
+        'wspace': 0.25, 'hspace': 0.12,
     }
 
     fig = plt.figure(figsize=figsize)
@@ -266,6 +273,8 @@ def main(
         fontweight='bold',
         transform=ax.transAxes,
     )
+    ax.set_yticks([0, 30, 60, 90, 120, 150, 180])
+    ax.set_xticks(np.logspace(-3, 5, 9))
 
     dax['2d'] = ax
 
@@ -291,6 +300,7 @@ def main(
         transform=ax.transAxes,
     )
 
+    ax.set_yticks(np.power(10, vmaxlog10_1d + np.arange(-8, 1)))
     dax['1d'] = ax
 
     dax = ds._generic_check._check_dax(dax)
