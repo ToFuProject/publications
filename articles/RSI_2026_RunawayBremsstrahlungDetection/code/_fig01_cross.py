@@ -51,7 +51,7 @@ _DPFE_DCROSS = {
 
 
 def main(
-    figsize=(15, 7),
+    figsize=(12, 6),
     pfe_cross='EH0',
     version='EH',
     Eph_eV=np.r_[1e3, 10e3, 500e3],
@@ -86,15 +86,21 @@ def main(
     # prepare axes
     # --------------
 
-    dmargin = {
-        'left': 0.06, 'right': 0.99,
-        'bottom': 0.08, 'top': 0.93,
-        'wspace': 0.25, 'hspace': 0.10,
+    dmargin_theta = {
+        'left': 0.07, 'right': 0.46,
+        'bottom': 0.09, 'top': 0.92,
+        'wspace': 0.08, 'hspace': 0.05,
+    }
+    dmargin_map = {
+        'left': 0.54, 'right': 0.99,
+        'bottom': 0.09, 'top': 0.92,
+        'wspace': 0.10, 'hspace': 0.10,
     }
 
     fig = plt.figure(figsize=figsize)
 
-    gs = gridspec.GridSpec(ncols=4, nrows=2, **dmargin)
+    gs_theta = gridspec.GridSpec(ncols=2, nrows=2, **dmargin_theta)
+    gs_map = gridspec.GridSpec(ncols=1, nrows=1, **dmargin_map)
     dax = {}
 
     # --------------
@@ -105,7 +111,7 @@ def main(
     # ax - isolines
 
     ax = fig.add_subplot(
-        gs[:, -2:],
+        gs_map[0, 0],
         xscale='log',
         yscale='log',
         aspect='equal',
@@ -135,7 +141,7 @@ def main(
 
     # theta_norm0
     ax = fig.add_subplot(
-        gs[0, 0],
+        gs_theta[0, 0],
         xscale='linear',
     )
     ax.set_ylabel(
@@ -148,13 +154,14 @@ def main(
         size=fontsize,
         fontweight='bold',
     )
+    ax.tick_params(labelbottom=False)
 
     # store
     dax['theta_norm0'] = {'handle': ax, 'type': 'isolines'}
 
     # theta_norm1
     ax = fig.add_subplot(
-        gs[0, 1],
+        gs_theta[0, 1],
         sharex=dax['theta_norm0']['handle'],
         sharey=dax['theta_norm0']['handle'],
     )
@@ -163,6 +170,8 @@ def main(
         size=fontsize,
         fontweight='bold',
     )
+    ax.tick_params(labelbottom=False)
+    ax.tick_params(labelleft=False)
     ax.set_xticks(np.r_[0, 45, 90, 135, 180])
 
     # store
@@ -173,7 +182,7 @@ def main(
 
     # theta_abs0
     ax = fig.add_subplot(
-        gs[1, 0],
+        gs_theta[1, 0],
         sharex=dax['theta_norm0']['handle'],
     )
     ax.set_xlabel(
@@ -186,13 +195,14 @@ def main(
         size=fontsize,
         fontweight='bold',
     )
+    ax.set_yticks(np.logspace(-12, -5, 8))
 
     # store
     dax['theta_abs0'] = {'handle': ax, 'type': 'isolines'}
 
     # theta_abs1
     ax = fig.add_subplot(
-        gs[1, 1],
+        gs_theta[1, 1],
         sharex=dax['theta_norm0']['handle'],
         sharey=dax['theta_abs0']['handle'],
     )
@@ -201,9 +211,18 @@ def main(
         size=fontsize,
         fontweight='bold',
     )
+    ax.tick_params(labelleft=False)
 
     # store
     dax['theta_abs1'] = {'handle': ax, 'type': 'isolines'}
+
+    # ticklabels size
+    for kax, vax in dax.items():
+        dax[kax]['handle'].tick_params(
+            axis='both',
+            which='major',
+            labelsize=fontsize - 1,
+        )
 
     # ------------------
     # call built-in

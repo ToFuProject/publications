@@ -36,10 +36,10 @@ def main(
     # d2cross
     d2cross_phi=None,
     # Eph
-    Eph=np.r_[0.01, 2, 30]*1e3,
+    Eph=np.r_[0.05, 5, 50]*1e3,
     # plot
     figsize=(5, 7),
-    fontsize=14,
+    fontsize=12,
     # save
     path_save=None,
     pfe_save=None,
@@ -85,6 +85,12 @@ def main(
     Teu = np.unique(ddist['plasma']['Te_eV']['data'])
     units = demiss[kdomref]['emiss']['maxwell']['ff']['units']
 
+    indTe = np.argmin(np.abs(Teu - Te_eV))
+    Te_eV = ddist['plasma']['Te_eV']['data'][(0, indTe, 0)]
+    ne = np.unique(ddist['plasma']['ne_m3']['data'])[0]
+    jp = np.unique(ddist['plasma']['jp_Am2']['data'])[0]
+    jp_frac = np.unique(ddist['plasma']['jp_fraction_re']['data'])[0]
+
     nE = Eph.size
 
     # vmax, vmin
@@ -93,19 +99,27 @@ def main(
     vmax = 10**vmax_log10
     vmin = 10**(vmax_log10 - 21)
 
+    # title
+    tit = (
+        r"$n_e$" + f" = {ne:1.0e}" + r"$/m^3$,  "
+        + r"$j_P$" + f" = {jp*1e-6:1.0f}" + r"$MA/m^2$" + "\n"
+        + r"$T_e$" + f" = {Te_eV*1e-3:1.0f} keV,  "
+        + r"$F_{RE}$" + f" = {jp_frac:2.1f}"
+    )
+
     # --------------
     # prepare axes
     # --------------
 
     dmargin_spect = {
-        'left': 0.15, 'right': 0.97,
-        'bottom': 0.06, 'top': 0.99,
-        'wspace': 0.25, 'hspace': 0.30,
+        'left': 0.13, 'right': 0.97,
+        'bottom': 0.06, 'top': 0.94,
+        'wspace': 0.25, 'hspace': 0.20,
     }
     dmargin_theta = {
-        'left': 0.15, 'right': 0.97,
-        'bottom': 0.08, 'top': 0.60,
-        'wspace': 0.10, 'hspace': 0.10,
+        'left': 0.13, 'right': 0.97,
+        'bottom': 0.07, 'top': 0.55,
+        'wspace': 0.15, 'hspace': 0.10,
     }
 
     fig = plt.figure(figsize=figsize)
@@ -129,6 +143,11 @@ def main(
     )
     ax.set_xlabel(
         r"$E_{ph}$" + ' (keV)',
+        fontsize=fontsize,
+        fontweight='bold',
+    )
+    ax.set_title(
+        tit,
         fontsize=fontsize,
         fontweight='bold',
     )
@@ -217,6 +236,7 @@ def main(
                 fontsize=fontsize,
                 fontweight='bold',
             )
+            ax.set_ylim(1e6, 1e13)
         else:
             ax.tick_params(labelleft=False)
 
@@ -235,6 +255,14 @@ def main(
 
     dax = ds._generic_check._check_dax(dax)
 
+    # ticklabels size
+    for kax, vax in dax.items():
+        dax[kax]['handle'].tick_params(
+            axis='both',
+            which='major',
+            labelsize=fontsize - 1,
+        )
+
     # --------------
     # plot - spectra
     # --------------
@@ -244,8 +272,6 @@ def main(
         ax = dax[kax]['handle']
 
         # slice
-        indTe = np.argmin(np.abs(Teu - Te_eV))
-        Te_eV = ddist['plasma']['Te_eV']['data'][(0, indTe, 0)]
         sli = (0, indTe, 0, slice(None), slice(None))
 
         # ----------
@@ -294,8 +320,10 @@ def main(
         ax.set_yscale('log')
         ax.set_ylim(vmin, vmax)
         ax.set_xlim(1e-3, 1e5)
+        ax.set_ylim(1e-3, 1e18)
+        ax.set_yticks(np.logspace(-3, 18, 8))
         ax.grid(True)
-        ax.legend(loc='lower left', fontsize=12)
+        ax.legend(loc='lower left', fontsize=fontsize - 2)
 
     # --------------
     # plot vs theta
@@ -358,7 +386,10 @@ def main(
                     lw=1,
                     label=kdist,
                 )
-        ax.grid(True)
+
+            if ie == 0:
+                ax.set_yticks(np.logspace(6, 13, 6))
+            ax.grid(True)
 
     # --------------
     # save
