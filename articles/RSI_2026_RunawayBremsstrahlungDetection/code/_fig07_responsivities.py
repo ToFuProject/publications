@@ -28,6 +28,7 @@ _PFE_RESPONSIVITIES = os.path.join(
 _LRESP = [
     'bolo',
     'cvd_bare', 'cvd_filter',
+    'spectro',
     'mesxr_11_keV',
     'mehxr_60_keV',
 ]
@@ -105,10 +106,8 @@ def main(
         # loop on sensors
 
         dme = {'mesxr': False, 'mehxr': False, 'cvd': False}
-        for k0, v0 in dresp.items():
-
-            if k0 not in _LRESP:
-                continue
+        for k0 in _LRESP:
+            v0 = dresp[k0]
 
             # resp, color, lab
             lk = [kk for kk in dme.keys() if kk in k0]
@@ -141,7 +140,7 @@ def main(
                 label=lab,
             )
 
-        ax.set_ylim(1e-4, 2)
+        ax.set_ylim(1e-5, 2)
         ax.grid(True)
         ax.legend()
 

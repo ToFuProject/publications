@@ -20,3 +20,4 @@ articles/RSI_2026_RunawayBremsstrahlungDetection/figures/fig02_dist_type.png fil
 articles/RSI_2026_RunawayBremsstrahlungDetection/figures/fig02_RE_ff.png filter=lfs diff=lfs merge=lfs -text
 articles/RSI_2026_RunawayBremsstrahlungDetection/figures/fig03_validate_ff.png filter=lfs diff=lfs merge=lfs -text
 articles/RSI_2026_RunawayBremsstrahlungDetection/figures/fig08_perfs_single.png filter=lfs diff=lfs merge=lfs -text
+articles/RSI_2026_RunawayBremsstrahlungDetection/figures/fig07_responsivities.png filter=lfs diff=lfs merge=lfs -text
