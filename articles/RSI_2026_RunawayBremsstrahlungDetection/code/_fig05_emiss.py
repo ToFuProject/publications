@@ -170,7 +170,7 @@ def main(
     tit0 = (
         r"$n_e$" + f" = {ne:1.1e} " + r"$/m^3$,  "
         + r"$j_P$" + f" = {jp:1.1e} " + r"$A/m^2$" + "\n"
-        + re
+        + f"{re}  -  "
     )
 
     ax0_spect = None
@@ -180,7 +180,7 @@ def main(
         lk = list(dmix[mix].keys())
         lc = [np.unique(dmix[mix][kk])[0] for kk in lk]
         inds = np.argsort(lc)[::-1]
-        lstr = [f"{lk[ss]} {lc[ss]*100:3.1f} \%" for ss in inds]
+        lstr = [f"{lk[ss]} {lc[ss]*100:3.1f} %" for ss in inds]
         tit = ",  ".join(lstr)
         if im == 0:
             tit = tit0 + tit
@@ -340,24 +340,28 @@ def main(
                     alpha=0.5,
                     edgecolor=v0['color'],
                     ls='--',
-                    label=r'$\epsilon_{ff}^{RE}$' if ic == 0 else None,
+                    label=r'$\epsilon_{ff}^{RE}$' if i0 == 0 else None,
                 )
 
                 # decorate
-                vmax_log10 = np.ceil(np.log10(np.nanmax(emiss_max)))
+                if i0 == 0:
+                    vmax_log10 = np.ceil(np.log10(np.nanmax(emiss_max)))
 
-                ax.set_xscale('log')
-                ax.set_yscale('log')
-                ax.set_ylim(10**(vmax_log10 - 18), 10**vmax_log10)
-                ax.set_xlim(left=demiss[ii]['E_ph']['data'][0]*1e-3)
-                ax.grid(True)
+                    ax.set_xscale('log')
+                    ax.set_yscale('log')
+                    ax.set_ylim(10**(vmax_log10 - 18), 10**vmax_log10)
+                    ax.set_xlim(left=demiss[ii]['E_ph']['data'][0]*1e-3)
+                    ax.grid(True)
 
-                # legend
-                lab = r"$\epsilon_{ff}^{Max} + \epsilon_{fb}^{Max} + \epsilon_{bb}^{Max}$"
-                ax.plot([], [], c='k', ls='-', label=lab)
-                lab = r"$\epsilon_{ff}^{Max}$"
-                ax.plot([], [], c='k', ls='--', label=lab)
-                ax.legend(loc='upper right')
+                    # legend
+                    lab = (
+                        r"$\epsilon_{ff}^{Max} + \epsilon_{fb}^{Max} + $"
+                        r"$\epsilon_{bb}^{Max}$"
+                    )
+                    ax.plot([], [], c='k', ls='-', label=lab)
+                    lab = r"$\epsilon_{ff}^{Max}$"
+                    ax.plot([], [], c='k', ls='--', label=lab)
+                    ax.legend(loc='upper right')
 
     # --------------
     # plot - Elim
