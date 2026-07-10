@@ -342,9 +342,13 @@ def main(
     lresp = _LRESP
     ldist = sorted(dsignal[lresp[0]].keys())
 
-    # detail
+    # details
     shape = (len(lresp),) + data.shape
-    zeros = np.zeros(data.shape, dtype=float)
+    shape_bb = dsignal[kresp]['maxwell']['bb']['head-on']['data'].shape
+    if len(shape_bb) == 0:
+        zeros = 0.
+    else:
+        zeros = np.zeros(shape_bb, dtype=float)
     total_headon = np.zeros(shape, dtype=float)
     total_back = np.zeros(shape, dtype=float)
     for kdist in ldist:
