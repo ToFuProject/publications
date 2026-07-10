@@ -4,6 +4,7 @@ import string
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import matplotlib.transforms as transforms
 import datastock as ds
 
 
@@ -434,7 +435,7 @@ def main(
                 np.arange(len(lresp)) + 1,
                 vcase['diff_RE'] / vcase['total_headon'],
                 marker='o',
-                ms=10,
+                ms=8,
                 ls='None',
                 c='k',
                 label='RE',
@@ -445,11 +446,29 @@ def main(
                 np.arange(len(lresp)) + 1,
                 vcase['diff_max'] / vcase['total_headon'],
                 marker='x',
-                ms=10,
+                ms=8,
                 ls='None',
                 c='k',
                 label='maxwellian',
             )
+
+            # digitizer
+            trans = transforms.blended_transform_factory(
+                ax.transAxes, ax.transData,
+            )
+            ddigit = {16: 'r', 12: 'b'}
+            for nbits, cc in ddigit.items():
+                ax.axhline(1/2**nbits, c=cc, ls='--')
+                ax.text(
+                    1,
+                    1/2**nbits,
+                    f'{nbits} bits',
+                    ha='right',
+                    va='bottom',
+                    color=cc,
+                    fontsize=fontsize - 2,
+                    transform=trans,
+                )
 
             iok = vcase['diff_max'] > 0
             vmin_log10 = np.floor(np.log10(min(
@@ -466,7 +485,7 @@ def main(
                 rotation=30,
                 ha="right",
             )
-            ax.legend(loc='lower right')
+            ax.legend(loc='center right')
             ax.grid(True)
 
     # --------------
