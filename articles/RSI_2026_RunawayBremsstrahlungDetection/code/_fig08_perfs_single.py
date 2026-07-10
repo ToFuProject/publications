@@ -456,29 +456,32 @@ def main(
                 label='maxwellian',
             )
 
+            # vmin
+            iok = vcase['diff_max'] > 0
+            vmin_log10 = np.floor(np.log10(min(
+                np.min(vcase['diff_RE'] / vcase['total_headon']),
+                np.min(vcase['diff_max'][iok] / vcase['total_headon'][iok]),
+            )))
+
             # digitizer
             trans = transforms.blended_transform_factory(
                 ax.transAxes, ax.transData,
             )
             ddigit = {16: 'r', 12: 'b'}
             for nbits, cc in ddigit.items():
-                ax.axhline(1/2**nbits, c=cc, ls='--')
-                ax.text(
-                    1,
-                    1/2**nbits,
-                    f'{nbits} bits',
-                    ha='right',
-                    va='bottom',
-                    color=cc,
-                    fontsize=fontsize - 2,
-                    transform=trans,
-                )
-
-            iok = vcase['diff_max'] > 0
-            vmin_log10 = np.floor(np.log10(min(
-                np.min(vcase['diff_RE'] / vcase['total_headon']),
-                np.min(vcase['diff_max'][iok] / vcase['total_headon'][iok]),
-            )))
+                yy = 1/2**nbits
+                if yy > 10**np.floor(vmin_log10):
+                    ax.axhline(yy, c=cc, ls='--')
+                    ax.text(
+                        1,
+                        yy,
+                        f'{nbits} bits',
+                        ha='right',
+                        va='bottom',
+                        color=cc,
+                        fontsize=fontsize - 2,
+                        transform=trans,
+                    )
 
             # decorate
             if kcase == 0:

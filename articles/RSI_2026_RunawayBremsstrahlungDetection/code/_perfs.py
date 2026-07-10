@@ -77,7 +77,7 @@ def main(
     # -----------
 
     if dmix is None:
-        dmix = _DDMIX[1]
+        dmix = _DDMIX[0]
 
     # Maxwell
     kwd_max = {'ne_m3': ne_m3, 'jp_Am2': jp_Am2}
