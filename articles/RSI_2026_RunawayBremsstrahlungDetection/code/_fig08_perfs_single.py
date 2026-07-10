@@ -20,20 +20,49 @@ from ._savefig import main as savefig
 _DCASES = {
     0: {
         'Te_eV': 1e3,
-        'jp_fraction_re': 0.1,
+        'jp_fraction_re': 0.3,
         're': 'avalanche 100 keV',
     },
     1: {
-        'Te_eV': 0.1e3,
+        'Te_eV': 0.2e3,
         'jp_fraction_re': 0.5,
         're': 'avalanche 10 MeV',
     },
     2: {
         'Te_eV': 2e3,
-        'jp_fraction_re': 0.9,
+        'jp_fraction_re': 0.8,
         're': 'dreicer',
     },
 }
+
+
+_DMARKER = {
+    'bolo': {
+        'marker': 'None',
+        'ls': '-',
+    },
+    'cvd_bare': {
+        'marker': 'None',
+        'ls': '--',
+    },
+    'cvd_filter': {
+        'marker': 'None',
+        'ls': '-.',
+    },
+    'spectro': {
+        'marker': 'None',
+        'ls': '-',
+    },
+    'mesxr_11_keV': {
+        'marker': 'None',
+        'ls': '--',
+    },
+    'mehxr_60_keV': {
+        'marker': 'None',
+        'ls': '-.',
+    },
+}
+
 
 
 _LCOMP = ['maxwell bb', 'maxwell fb', 'maxwell ff', 'RE ff']
@@ -302,13 +331,14 @@ def main(
             # ------------
             # loop on resp
 
-            for kresp in vcase['demiss_integ'].keys():
+            for kresp in _perfs._LRESP:
 
                 data = vcase['demiss_integ'][kresp]['RE']['ff']['data']
                 l0, = ax.plot(
                     theta*180/np.pi,
                     data / data.max(),
-                    ls='-',
+                    ls=_DMARKER[kresp]['ls'],
+                    marker=_DMARKER[kresp]['marker'],
                     color=_perfs._DANGLES[dang[kresp]]['color'],
                     lw=1,
                     label=kresp,

@@ -142,6 +142,7 @@ def main(
     dresp = {
         k0: v0.tolist()
         for k0, v0 in np.load(_PFE_RESPONSIVITIES, allow_pickle=True).items()
+        if k0 in _LRESP
     }
 
     # -----------------------------
