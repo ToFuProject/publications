@@ -28,8 +28,9 @@ _RE = 'avalanche 100 keV'
 
 
 _DDMIX = {
-    0: 'O',
-    1: {'O': 0.90, 'Fe': 0.10},
+    # 0: 'H',
+    1: 'O',
+    2: {'O': 0.90, 'Fe': 0.10},
 }
 
 
@@ -169,6 +170,7 @@ def main(
     tit0 = (
         r"$n_e$" + f" = {ne:1.1e} " + r"$/m^3$,  "
         + r"$j_P$" + f" = {jp:1.1e} " + r"$A/m^2$" + "\n"
+        + re
     )
 
     ax0_spect = None
@@ -308,7 +310,19 @@ def main(
                     alpha=0.5,
                     edgecolor=v0['color'],
                     ls='-',
-                    label=f'maxwell_{ic}',
+                )
+
+                # -----------
+                # ff -maxwell
+
+                ff_max = demiss[ii]['emiss']['maxwell']['ff']['data'][sli_anis]
+
+                # plot
+                ax.plot(
+                    demiss[ii]['E_ph']['data']*1e-3,
+                    np.nanmean(ff_max, axis=-1),
+                    color=v0['color'],
+                    ls='--',
                 )
 
                 # -----------
@@ -326,7 +340,7 @@ def main(
                     alpha=0.5,
                     edgecolor=v0['color'],
                     ls='--',
-                    label=f'RE_{ic}',
+                    label=r'$\epsilon_{ff}^{RE}$' if ic == 0 else None,
                 )
 
                 # decorate
@@ -337,6 +351,13 @@ def main(
                 ax.set_ylim(10**(vmax_log10 - 18), 10**vmax_log10)
                 ax.set_xlim(left=demiss[ii]['E_ph']['data'][0]*1e-3)
                 ax.grid(True)
+
+                # legend
+                lab = r"$\epsilon_{ff}^{Max} + \epsilon_{fb}^{Max} + \epsilon_{bb}^{Max}$"
+                ax.plot([], [], c='k', ls='-', label=lab)
+                lab = r"$\epsilon_{ff}^{Max}$"
+                ax.plot([], [], c='k', ls='--', label=lab)
+                ax.legend(loc='upper right')
 
     # --------------
     # plot - Elim
