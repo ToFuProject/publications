@@ -134,6 +134,7 @@ def main(
             dang, theta,
             lresp, ldist,
         ) = _perfs.main(
+            dmix=dmix,
             d2cross_pphi=d2cross_phi,
             Te_eV=vcase['Te_eV'],
             jp_fraction_re=vcase['jp_fraction_re'],
