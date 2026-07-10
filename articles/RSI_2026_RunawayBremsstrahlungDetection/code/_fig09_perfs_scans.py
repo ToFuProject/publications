@@ -9,6 +9,7 @@ import datastock as ds
 
 from ._load_spect_anis import _JP_FRAC
 from . import _perfs
+from ._fig08_perfs_single import _DCASES
 from ._savefig import main as savefig
 
 
@@ -18,30 +19,39 @@ from ._savefig import main as savefig
 # #######################################
 
 
+_RE = ['dreicer', 'avalanche 100 keV', 'avalanche 10 MeV']
+
+
 _DLEVELS = {
     'bolo': {
-        'dynamic': np.r_[1e-6, 1e-5, 5e-5, 1e-4, 1e-3],
-        'RE_vs_max': np.r_[10, 20, 30, 50, 70, 80],
+        'xi': np.r_[1e-6, 1e-5, 5e-5, 1e-4, 1e-3],
+        'kappa': np.r_[10, 20, 30, 50, 70, 80],
+        'total': 10,
     },
     'cvd_bare': {
-        'dynamic': np.r_[1e-5, 5e-5, 1e-4, 5e-4, 1e-3],
-        'RE_vs_max': np.r_[10, 20, 30, 50, 70, 80, 90],
+        'xi': np.r_[1e-5, 5e-5, 1e-4, 5e-4, 1e-3],
+        'kappa': np.r_[10, 20, 30, 50, 70, 80, 90],
+        'total': 10,
     },
     'cvd_filter': {
-        'dynamic': np.r_[1e-4, 1e-3, 1e-2, 1e-1, 0.5],
-        'RE_vs_max': np.r_[10, 20, 30, 50, 70, 80, 90],
+        'xi': np.r_[1e-4, 1e-3, 1e-2, 1e-1, 0.5],
+        'kappa': np.r_[10, 20, 30, 50, 70, 80, 90],
+        'total': 10,
     },
     'spectro': {
-        'dynamic': 10,
-        'RE_vs_max': 10,
+        'xi': 10,
+        'kappa': 10,
+        'total': 10,
     },
     'mesxr_11_keV': {
-        'dynamic': np.r_[0.01, 0.1, 0.2, 0.3],
-        'RE_vs_max': 10,
+        'xi': np.r_[0.01, 0.1, 0.2, 0.3],
+        'kappa': 10,
+        'total': 10,
     },
     'mehxr_60_keV': {
-        'dynamic': 10,
-        'RE_vs_max': 10,
+        'xi': 10,
+        'kappa': 10,
+        'total': 10,
     },
 }
 
@@ -69,7 +79,7 @@ def main(
     sigmap=None,
     pnormW=0,
     # plot
-    figsize=(15, 4),
+    figsize=(10, 14),
     fontsize=14,
     # save
     path_save=None,
@@ -85,55 +95,79 @@ def main(
     if jp_fraction_re is None:
         jp_fraction_re = _JP_FRAC
 
+    if re is None:
+        re = _RE
+
     # --------------
     # compute
     # --------------
 
-    (
-        demiss_integ, dsignal, ddist,
-        total_headon, diff_RE, diff_max,
-        dang, theta,
-        lresp, ldist,
-    ) = _perfs.main(
-        **locals(),
-    )
+    dout = {}
+    for ii, rei in enumerate(re):
+        (
+            demiss_integ, dsignal, ddist,
+            total_headon, diff_RE, diff_max,
+            dang, theta,
+            lresp, ldist,
+        ) = _perfs.main(
+            dmix=dmix,
+            ne_m3=ne_m3,
+            jp_Am2=jp_Am2,
+            d2cross_phi=d2cross_phi,
+            re=rei,
+            jp_fraction_re=jp_fraction_re,
+        )
+
+        dout[rei] = {
+            'ii': ii,
+            'demiss_integ': demiss_integ,
+            'dsignal': dsignal,
+            'ddist': ddist,
+            'total_headon': total_headon,
+            'diff_RE': diff_RE,
+            'diff_max': diff_max,
+        }
 
     # --------------
     # extract
     # --------------
 
     nresp = len(lresp)
+    nre = len(re)
 
     # --------------
     # prepare
     # --------------
 
-    # dynamic range
-    dynamic = diff_RE / total_headon
-    bits = None
+    for rei, vout in dout.items():
+        # xi range
+        dout[rei]['xi'] = vout['diff_RE'] / vout['total_headon']
 
-    # adjust for spectro
-    ispect = _LRESP.index('spectro')
-    minus = dsignal['spectro']['maxwell']['bb']['head-on']['data']
-    import pdb; pdb.set_trace()     # DB
-    dynamic[ispect, :] = diff_RE[ispect, :] / (total_headon - minus)
+        # RE vs Maxwell
+        difftot = vout['diff_max'] + vout['diff_RE']
+        dout[rei]['kappa'] = vout['diff_RE'] / difftot
 
-    # RE vs Maxwell
-    RE_vs_max = 100 * diff_RE / (diff_max + diff_RE)
+    # --------------
+    # prepare Te, F cases
+    # --------------
+
+    lkcase = sorted(_DCASES.keys())
+    Te_case = np.array([_DCASES[kk]['Te_eV'] for kk in lkcase])
+    Fre_case = np.array([_DCASES[kk]['jp_fraction_re'] for kk in lkcase])
 
     # --------------
     # prepare axes
     # --------------
 
     dmargin = {
-        'left': 0.05, 'right': 0.98,
-        'bottom': 0.12, 'top': 0.95,
-        'wspace': 0.10, 'hspace': 0.20,
+        'left': 0.08, 'right': 0.98,
+        'bottom': 0.04, 'top': 0.98,
+        'wspace': 0.10, 'hspace': 0.10,
     }
 
     fig = plt.figure(figsize=figsize)
 
-    gs = gridspec.GridSpec(ncols=nresp, nrows=1, **dmargin)
+    gs = gridspec.GridSpec(ncols=nre, nrows=nresp, **dmargin)
     dax = {}
 
     # --------------
@@ -141,48 +175,57 @@ def main(
     # --------------
 
     ax0 = None
-    for iresp, kresp in enumerate(lresp):
+    for ie, rei in enumerate(re):
+        for iresp, kresp in enumerate(lresp):
 
-        ax = fig.add_subplot(
-            gs[0, iresp],
-            aspect='auto',
-            sharex=ax0,
-            sharey=ax0,
-        )
+            ax = fig.add_subplot(
+                gs[iresp, ie],
+                aspect='auto',
+                sharex=ax0,
+                sharey=ax0,
+            )
+            if ie == iresp == 0:
+                ax0 = ax
 
-        ax.set_xlabel(
-            r'$T_e$ (keV)',
-            fontsize=fontsize,
-            fontweight='bold',
-        )
+            # title
+            if iresp == 0:
+                ax.set_title(
+                    rei,
+                    fontsize=fontsize,
+                    fontweight='bold',
+                )
 
-        ax.set_title(
-            kresp,
-            fontsize=fontsize,
-            fontweight='bold',
-        )
+            # xlabel
+            if iresp == len(lresp) - 1:
+                ax.set_xlabel(
+                    r'$T_e$ (keV)',
+                    fontsize=fontsize,
+                    fontweight='bold',
+                )
+            else:
+                ax.tick_params(labelbottom=False)
 
-        ax.text(
-            0.01,
-            0.99,
-            f"({string.ascii_lowercase[1 + iresp]})",
-            horizontalalignment='left',
-            verticalalignment='top',
-            fontsize=fontsize,
-            fontweight='bold',
-            transform=ax.transAxes,
-        )
+            # ylabel
+            if ie == 0:
+                ax.set_ylabel(
+                    f"{kresp}\n" + r"$F_{RE}$",
+                    fontsize=fontsize,
+                    fontweight='bold',
+                )
 
-        if iresp == 0:
-            ax.set_ylabel(
-                r"$F_{RE}$",
+            # char
+            ax.text(
+                0.01,
+                0.99,
+                f"({string.ascii_lowercase[iresp + ie * nre]})",
+                horizontalalignment='left',
+                verticalalignment='top',
                 fontsize=fontsize,
                 fontweight='bold',
+                transform=ax.transAxes,
             )
-        else:
-            ax.tick_params(labelleft=False)
 
-        dax[kresp] = ax
+            dax[f"{rei}_{kresp}"] = ax
 
     # check
     dax = ds._generic_check._check_dax(dax)
@@ -191,52 +234,85 @@ def main(
     # plot vs theta
     # --------------
 
-    for iresp, kresp in enumerate(lresp):
+    for ie, rei in enumerate(re):
+        for iresp, kresp in enumerate(lresp):
 
-        kax = kresp
-        if dax.get(kax) is not None:
-            ax = dax[kax]['handle']
+            kax = f"{rei}_{kresp}"
+            if dax.get(kax) is not None:
+                ax = dax[kax]['handle']
 
-            # -------------
-            # dynamic range
+                # -------------
+                # xi range
 
-            # set levels dynamic
-            if _DLEVELS.get(kresp, {}).get('dynamic') is not None:
-                levels = _DLEVELS[kresp]['dynamic']
+                # set levels xi
+                if _DLEVELS.get(kresp, {}).get('xi') is not None:
+                    levels = _DLEVELS[kresp]['xi']
 
-            # plot dynamic range
-            sli = (0, slice(None), slice(None))
-            cs = ax.contour(
-                ddist['plasma']['Te_eV']['data'][sli] * 1e-3,
-                ddist['plasma']['jp_fraction_re']['data'][sli],
-                dynamic[iresp],
-                colors='k',
-                linestyles='-',
-                levels=levels,
-            )
-            ax.clabel(cs, cs.levels, fmt=lambda vv: f"{vv:2.1e}", fontsize=12)
+                # plot xi range
+                sli = (0, slice(None), slice(None))
+                cs = ax.contour(
+                    ddist['plasma']['Te_eV']['data'][sli] * 1e-3,
+                    ddist['plasma']['jp_fraction_re']['data'][sli],
+                    dout[rei]['xi'][iresp],
+                    colors='k',
+                    linestyles='-',
+                    levels=levels,
+                )
+                ax.clabel(
+                    cs,
+                    cs.levels,
+                    fmt=lambda vv: f"{vv:2.1e}",
+                    fontsize=12,
+                )
 
-            # set levels RE_vs_max
-            if _DLEVELS.get(kresp, {}).get('RE_vs_max') is not None:
-                levels = _DLEVELS[kresp]['RE_vs_max']
+                # set levels kappa
+                if _DLEVELS.get(kresp, {}).get('kappa') is not None:
+                    levels = _DLEVELS[kresp]['kappa']
 
-            # plot range
-            cs = ax.contour(
-                ddist['plasma']['Te_eV']['data'][sli] * 1e-3,
-                ddist['plasma']['jp_fraction_re']['data'][sli],
-                RE_vs_max[iresp],
-                colors='b',
-                linestyles='-',
-                levels=levels,
-            )
-            ax.clabel(cs, cs.levels, fontsize=12)
+                # plot kappa
+                cs = ax.contour(
+                    ddist['plasma']['Te_eV']['data'][sli] * 1e-3,
+                    ddist['plasma']['jp_fraction_re']['data'][sli],
+                    dout[rei]['kappa'][iresp],
+                    colors='b',
+                    linestyles='-',
+                    levels=levels,
+                )
+                ax.clabel(cs, cs.levels, fontsize=12)
 
-            # ------------
-            # decorate
+                # set levels total
+                if _DLEVELS.get(kresp, {}).get('total') is not None:
+                    levels = _DLEVELS[kresp]['total']
 
-            ax.set_xlim(0, 2.5)
-            ax.set_ylim(0, 1)
-            ax.grid(True)
+                # plot total head-on
+                total = dout[rei]['total_headon'][iresp]
+                cs = ax.contour(
+                    ddist['plasma']['Te_eV']['data'][sli] * 1e-3,
+                    ddist['plasma']['jp_fraction_re']['data'][sli],
+                    total / np.nanmax(total),
+                    colors='g',
+                    linestyles='-',
+                    levels=levels,
+                )
+                ax.clabel(cs, cs.levels, fontsize=12)
+
+                # add case
+                ax.plot(
+                    Te_case*1e-3,
+                    Fre_case,
+                    ls='None',
+                    marker='x',
+                    ms=6,
+                    color='k',
+                )
+
+                # ------------
+                # decorate
+
+                if ie == iresp == 0:
+                    ax.set_xlim(0, 2.5)
+                    ax.set_ylim(0, 1)
+                    ax.grid(True)
 
     # --------------
     # save
@@ -249,11 +325,7 @@ def main(
         file=__file__,
     )
 
-    return (
-        dax, demiss_integ, dsignal,
-        total_headon, diff_RE, diff_max,
-        dynamic, RE_vs_max,
-    )
+    return dax, dout
 
 
 # #######################################
