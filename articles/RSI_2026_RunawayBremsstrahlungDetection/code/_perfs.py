@@ -344,16 +344,19 @@ def main(
 
     # detail
     shape = (len(lresp),) + data.shape
+    zeros = np.zeros(data.shape, dtype=float)
     total_headon = np.zeros(shape, dtype=float)
     total_back = np.zeros(shape, dtype=float)
     for kdist in ldist:
         for kemiss in sorted(dsignal[lresp[0]][kdist].keys()):
             total_headon[...] += np.array([
-                dsignal[kresp][kdist][kemiss]['head-on']['data']
+                zeros if (kresp == 'spectro' and kemiss == 'bb')
+                else dsignal[kresp][kdist][kemiss]['head-on']['data']
                 for kresp in lresp
             ])
             total_back[...] += np.array([
-                dsignal[kresp][kdist][kemiss]['back']['data']
+                zeros if (kresp == 'spectro' and kemiss == 'bb')
+                else dsignal[kresp][kdist][kemiss]['back']['data']
                 for kresp in lresp
             ])
 

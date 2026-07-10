@@ -112,6 +112,12 @@ def main(
     dynamic = diff_RE / total_headon
     bits = None
 
+    # adjust for spectro
+    ispect = _LRESP.index('spectro')
+    minus = dsignal['spectro']['maxwell']['bb']['head-on']['data']
+    import pdb; pdb.set_trace()     # DB
+    dynamic[ispect, :] = diff_RE[ispect, :] / (total_headon - minus)
+
     # RE vs Maxwell
     RE_vs_max = 100 * diff_RE / (diff_max + diff_RE)
 

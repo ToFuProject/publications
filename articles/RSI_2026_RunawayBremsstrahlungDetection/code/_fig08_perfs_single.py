@@ -382,14 +382,18 @@ def main(
             weight_counts = {'head-on': {}, 'back': {}}
 
             # loop
+            shape = vcase['dsignal']['bolo']['RE']['ff']['back']['data'].shape
+            zeros = np.zeros(shape, dtype=float)
             for kdir in weight_counts.keys():
 
                 # detail
                 for kdist in ldist:
                     lk = sorted(vcase['dsignal'][lresp[0]][kdist].keys())
                     for kemiss in lk:
+
                         data = np.array([
-                            vcase['dsignal'][kresp][kdist][kemiss][kdir]['data'].squeeze()
+                            zeros if (kresp == 'spectro' and kemiss == 'bb')
+                            else vcase['dsignal'][kresp][kdist][kemiss][kdir]['data'].squeeze()
                             for kresp in lresp
                         ])
                         weight_counts[kdir][f"{kdist} {kemiss}"] = data
