@@ -183,7 +183,7 @@ def main(
         lk = list(dmix[mix].keys())
         lc = [np.unique(dmix[mix][kk])[0] for kk in lk]
         inds = np.argsort(lc)[::-1]
-        lstr = [f"{lk[ss]} {lc[ss]*100:3.1f} %" for ss in inds]
+        lstr = [f"{lk[ss]} {lc[ss]*100:3.1f} \\%" for ss in inds]
         tit = ",  ".join(lstr)
         if im == 0:
             tit = tit0 + tit
