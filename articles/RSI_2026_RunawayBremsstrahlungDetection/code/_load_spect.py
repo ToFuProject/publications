@@ -18,8 +18,7 @@ _PATH_INPUTS = os.path.join(_PATH_PAPER, 'inputs')
 
 
 # SPECTRAL MODELLING FILES
-_LTYPES = ['_SCRAM86_', '_CHIANTI_']    # '_FLYCHK_'
-_LTYPES = ['_SCRAM86_', '_FLYCHK_']    # '_CHIANTI_'
+_LTYPES = ['_SCRAM86_']   # '_CHIANTI_', '_FLYCHK_'
 _LPFE_SPECT = [
     ff for ff in os.listdir(_PATH_INPUTS)
     if ff.endswith('_data.npz')
