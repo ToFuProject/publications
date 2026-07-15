@@ -110,7 +110,7 @@ def main(
     # --------------
 
     # load
-    dplasma, dmix = load_spect(
+    dplasma, dmix, data_source = load_spect(
         dmix=dmix,
         ne_m3=ne_m3,
         # data_source
@@ -361,4 +361,4 @@ def main(
         'Ekin_max_eV': ddist['plasma']['Ekin_max_eV'],
     }
 
-    return demiss, ddist, dmix
+    return demiss, ddist, dmix, data_source

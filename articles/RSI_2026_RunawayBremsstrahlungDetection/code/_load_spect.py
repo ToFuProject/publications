@@ -177,7 +177,10 @@ def main(
     sli_cc = (slice(None),) * len(shape_plasma) + (None,)
     for k0, v0 in dfiles.items():
         zz = np.arange(0, v0['Xz']['data'].shape[-1])
+
         fz = v0['Xz']['data']
+        if k0 == 'H':
+            fz[:, 1] = 1.
 
         sumfz = np.sum(fz, axis=-1)
         if not np.allclose(sumfz, 1):
@@ -273,7 +276,7 @@ def main(
         for ke in lemiss
     }
 
-    return dplasma, dmix
+    return dplasma, dmix, data_source
 
 
 # #####################################################

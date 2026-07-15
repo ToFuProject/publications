@@ -68,7 +68,7 @@ def main(
         kwd.update(**vdist)
         # kwd.update(**_DDIST['coords'])
 
-        demiss[kdist], ddist, dmix = _load_spect_anis.main(
+        demiss[kdist], ddist, dmix, data_source = _load_spect_anis.main(
             dmix=dmix,
             # d2cross
             d2cross_phi=d2cross_phi,

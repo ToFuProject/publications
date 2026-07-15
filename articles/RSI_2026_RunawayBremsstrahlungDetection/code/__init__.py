@@ -2,6 +2,8 @@ from ._main import main
 from ._load_spect import main as load_spect
 from ._load_spect_anis import main as load_spect_anis
 from ._perfs import main as perfs
+from ._singlept_sensor import main as singlept_sensor
+
 from ._fig01_cross import main as fig01_cross
 from ._fig02_dist import main as fig02_dist
 from ._fig02_dist_type import main as fig02_dist_type

@@ -112,7 +112,7 @@ def main(
     kwd = dict(kwd_max)
     kwd.update(**kwd_RE)
     for ii in dmix.keys():
-        demiss[ii], ddist, dmix[ii] = _load_spect_anis.main(
+        demiss[ii], ddist, dmix[ii], data_source = _load_spect_anis.main(
             dmix=dmix[ii],
             # d2cross
             d2cross_phi=d2cross_phi,
