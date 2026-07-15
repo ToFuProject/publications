@@ -69,6 +69,8 @@ def main(
     integration=None,
     # d2cross_phi
     d2cross_phi=None,
+    # data_source
+    data_source=None,
 ):
     """ For a given impurity mix and ne, Te, return a dict of emissivities
 
@@ -111,6 +113,8 @@ def main(
     dplasma, dmix = load_spect(
         dmix=dmix,
         ne_m3=ne_m3,
+        # data_source
+        data_source=data_source,
     )
 
     # extract

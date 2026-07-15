@@ -3,6 +3,7 @@ import os
 
 import numpy as np
 import scipy.constants as scpct
+import datastock as ds
 
 
 # #####################################################
@@ -18,16 +19,7 @@ _PATH_INPUTS = os.path.join(_PATH_PAPER, 'inputs')
 
 
 # SPECTRAL MODELLING FILES
-_LTYPES = ['_SCRAM86_']   # '_CHIANTI_', '_FLYCHK_'
-_LPFE_SPECT = [
-    ff for ff in os.listdir(_PATH_INPUTS)
-    if ff.endswith('_data.npz')
-    and any([ss.lower() in ff.lower() for ss in _LTYPES])
-]
-_DPFE_SPECT = {
-    ff.split('_')[-2]: os.path.join(_PATH_INPUTS, ff)
-    for ff in _LPFE_SPECT
-}
+_LTYPES = ['SCRAM86', 'CHIANTI', 'FLYCHK']
 
 
 # PLASMA
@@ -43,6 +35,7 @@ _NE = 1e19  # /m3
 def main(
     dmix=None,
     ne_m3=None,
+    data_source=None,
 ):
     """ Extract ff, fb, bb emissivities from SCRAM / FLYCHK / CHIANTY data
 
@@ -83,14 +76,37 @@ def main(
     # inputs
     # --------------
 
-    dmix = _check_mix(dmix)
+    # data_source
+    lok = ['SCRAM86', 'CHIANTI', 'FLYCHK']
+    data_source = ds._generic_check._check_var(
+        data_source, 'data_source',
+        default=lok[0],
+        allowed=lok,
+    )
+
+    # lfpe_spect
+    lpfe_spect = [
+        ff for ff in os.listdir(_PATH_INPUTS)
+        if ff.endswith('_data.npz')
+        and f"_{data_source}_".lower() in ff.lower()
+    ]
+
+    # dpfe_spect
+    dpfe_spect = {
+        ff.split('_')[-2]: os.path.join(_PATH_INPUTS, ff)
+        for ff in lpfe_spect
+    }
+
+    # dmix
+    dmix = _check_mix(dmix, dpfe_spect=dpfe_spect)
+    assert all([kk in dpfe_spect.keys() for kk in dmix.keys()])
 
     # --------------
     # load files
     # --------------
 
     dfiles = {
-        k0: np.load(_DPFE_SPECT[k0], allow_pickle=True)['arr_0'].tolist()
+        k0: np.load(dpfe_spect[k0], allow_pickle=True)['arr_0'].tolist()
         for k0 in dmix.keys()
     }
 
@@ -255,6 +271,7 @@ def main(
 
 def _check_mix(
     dmix=None,
+    dpfe_spect=None,
 ):
 
     # -----------
@@ -273,7 +290,7 @@ def _check_mix(
     # each dict
 
     dfail = {}
-    lok = sorted(_DPFE_SPECT.keys())
+    lok = sorted(dpfe_spect.keys())
     if isinstance(dmix, dict):
 
         # check each element
@@ -356,8 +373,6 @@ def _check_neTe(
     ne_m3 = np.atleast_1d(ne_m3)
 
     # Te
-    if Te is None:
-        Te = _TE
     Te = np.atleast_1d(Te)
 
     # -------------
