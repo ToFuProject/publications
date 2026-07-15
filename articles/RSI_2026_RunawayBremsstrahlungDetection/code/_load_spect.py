@@ -178,6 +178,19 @@ def main(
     for k0, v0 in dfiles.items():
         zz = np.arange(0, v0['Xz']['data'].shape[-1])
         fz = v0['Xz']['data']
+
+        sumfz = np.sum(fz, axis=-1)
+        if not np.allclose(sumfz, 1):
+            lstr = [
+                f"\t- Te = {te*1e-3:4.3f} keV: sum(fz) = {sfz}"
+                for te, sfz in zip(v0['Te']['data'], sumfz)
+            ]
+            msg = (
+                f"Impurity '{k0}' has wrong fractional abundances:\n"
+                f"From file: {dpfe_spect[k0]}\n"
+                + "\n".join(lstr)
+            )
+            raise Exception(msg)
         Zeff += np.sum(dmix[k0][sli_cc] * fz * zz[sli_Z]**2, axis=-1)
 
     dcommon['Zeff'] = {'data': Zeff, 'units': None}
