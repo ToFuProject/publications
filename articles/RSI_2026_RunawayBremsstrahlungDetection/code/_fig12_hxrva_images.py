@@ -50,12 +50,12 @@ _CASES = {
         # 'pitch': False,
         # 'ne': False,
     # },
-    2: {
+    1: {
         'helicity': True,
         'pitch': True,
         'ne': False,
     },
-    3: {
+    2: {
         'helicity': True,
         'pitch': True,
         'ne': True,
