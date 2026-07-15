@@ -23,25 +23,6 @@ _TE = 0.5e3
 _T = 5    # 5
 
 
-_CASES = {
-    0: {
-        'helicity': False,
-        'pitch': True,
-        'ne': False,
-    },
-    1: {
-        'helicity': True,
-        'pitch': True,
-        'ne': False,
-    },
-    2: {
-        'helicity': True,
-        'pitch': True,
-        'ne': True,
-    },
-}
-
-
 _FONTSIZE = 14
 
 
@@ -72,8 +53,6 @@ def main(
     jp_fraction_re=None,
     # RE
     re=None,
-    # assumptions
-    cases=None,
     # ptcam
     angle0=None,
     angle1=None,
@@ -108,9 +87,6 @@ def main(
     if isinstance(re, str):
         re = [re]
 
-    if cases is None:
-        cases = _CASES
-
     if key_resp is None:
         key_resp = 'cvd_filter'
 
@@ -118,6 +94,7 @@ def main(
     # compute
     # --------------
 
+    cases = {0: {'helicity': True, 'pitch': True, 'ne': True}},
     (
         coll, config,
         dangles, dsig_los, dmetrics,
@@ -162,12 +139,12 @@ def main(
     if dvmax is None:
         dvmax = {}
 
+    kcase = list(cases.keys())[0]
     for rei in re:
         if dvmax.get(rei) is None:
-            dvmax[rei] = np.nanmax([
+            dvmax[rei] = np.nanmax(
                 dsig_los[kcase][krays_max][rei]['RE']['ff']['data']
-                for kcase in cases.keys()
-            ])
+            )
 
     # -------------
     # prepare
@@ -184,6 +161,22 @@ def main(
 
     kcase = sorted(cases.keys())[0]
     units = dsig_los[kcase][krays_max][re[0]]['RE']['ff']['units']
+
+    # ----------------------
+    # loop on cases for axes
+    # ----------------------
+
+    dmerits_plot = {
+        0: {
+            'tit': 'xi',
+        },
+        1: {
+            'tit': 'kappa',
+        },
+        2: {
+            'tit': 'abs',
+        },
+    }
 
     # -------------
     # prepare fig
@@ -203,8 +196,7 @@ def main(
 
     fig = plt.figure(figsize=figsize)
 
-    nc = np.max([kk for kk in cases.keys()]) + 2
-    gs = gridspec.GridSpec(ncols=nc, nrows=len(re), **dmargin)
+    gs = gridspec.GridSpec(ncols=3, nrows=len(re), **dmargin)
     gs_cbar = gridspec.GridSpec(ncols=1, nrows=len(re), **dmargin_cbar)
     dax = {}
 
@@ -231,40 +223,32 @@ def main(
     # ----------------------
 
     ax0 = None
+    lm = sorted(dmerits_plot.keys())
     for ire, rei in enumerate(re):
-        for icase, (kcase, vcase) in enumerate(cases.items()):
-
-            # tit
-            hel = 'helicity' if vcase['helicity'] else 'no helicity'
-            pitch = 'pitch angle distrib.' if vcase['pitch'] else 'no pitch'
-            nep = 'ne profile' if vcase['ne'] else 'flat profile'
-            tit = (
-                f"{hel}\n"
-                f"{pitch}\n"
-                f"{nep}\n"
-            )
+        for im, km in enumerate(lm):
 
             # --------------
             # axes - image
 
             ax = fig.add_subplot(
-                gs[ire, kcase],
+                gs[ire, im],
                 aspect='equal',
                 sharex=ax0,
                 sharey=ax0,
             )
             if ire == 0:
                 ax.set_title(
-                    tit,
+                    dmerits[km]['tit'],
                     fontsize=fontsize,
                     fontweight='bold',
                 )
-            ax.set_xlabel(
-                r'$\theta_0$ (deg)',
-                fontsize=fontsize,
-                fontweight='bold',
-            )
-            if icase == 0:
+            if ire == len(re) - 1:
+                ax.set_xlabel(
+                    r'$\theta_0$ (deg)',
+                    fontsize=fontsize,
+                    fontweight='bold',
+                )
+            if im == 0:
                 ax.set_ylabel(
                     f"{rei}\n" + r"$\theta_1$ (deg)",
                     fontsize=fontsize,
@@ -275,7 +259,7 @@ def main(
             ax.text(
                 0.01,
                 0.99,
-                f'({string.ascii_lowercase[icase + nc*ire]})',
+                f'({string.ascii_lowercase[im + 3*ire]})',
                 horizontalalignment='left',
                 verticalalignment='top',
                 fontsize=fontsize,
@@ -283,41 +267,7 @@ def main(
                 transform=ax.transAxes,
             )
 
-            dax[f'{rei}_{kcase}'] = ax
-
-        # ---------
-        # diff_RE
-
-        ax = fig.add_subplot(
-            gs[ire, -1],
-            aspect='equal',
-            sharex=ax0,
-            sharey=ax0,
-        )
-        if ire == 0:
-            ax.set_title(
-                tit,
-                fontsize=fontsize,
-                fontweight='bold',
-            )
-        ax.set_xlabel(
-            r'$\theta_0$ (deg)',
-            fontsize=fontsize,
-            fontweight='bold',
-        )
-
-        ax.text(
-            0.01,
-            0.99,
-            f'({string.ascii_lowercase[nc - 1 + nc*ire]})',
-            horizontalalignment='left',
-            verticalalignment='top',
-            fontsize=fontsize,
-            fontweight='bold',
-            transform=ax.transAxes,
-        )
-
-        dax[f'{rei}_diff'] = ax
+            dax[f'{rei}_{km}'] = ax
 
         # ---------
         # colorbar

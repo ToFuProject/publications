@@ -366,6 +366,7 @@ def main(
         coll, config,
         dangles, dsig_los, dmetrics,
         krays_max, krays_min,
+        angle0, angle1,
         ne, jp, jp_frac, Te_eV,
     )
 
