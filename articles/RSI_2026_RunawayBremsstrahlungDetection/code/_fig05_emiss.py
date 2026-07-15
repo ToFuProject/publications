@@ -26,6 +26,7 @@ _PATH_PAPER = os.path.dirname(_PATH_HERE)
 
 _RE = 'avalanche 100 keV'
 
+_JP_FRAC = np.linspace(0.025, 0.975, 39)
 
 _DDMIX = {
     0: 'H',
@@ -51,7 +52,7 @@ def main(
     # RE
     re=None,
     dominant=None,
-    jp_fraction_re=np.linspace(0.025, 0.975, 11),
+    jp_fraction_re=None,
     Efield_par_Vm=None,
     Ekin_min_eV=None,
     Ekin_max_eV=None,
@@ -78,6 +79,9 @@ def main(
     if dmix is None:
         dmix = _DDMIX
     nmix = len(dmix)
+
+    if jp_fraction_re is None:
+        jp_fraction_re = _JP_FRAC
 
     # Maxwell
     kwd_max = {'ne_m3': ne_m3, 'jp_Am2': jp_Am2}
@@ -276,6 +280,7 @@ def main(
         )
         assert ic.sum() == 1
         ic = tuple([cc[0] for cc in ic.nonzero()])
+        print(i0, k0, ic)
 
         # --------
         # spectra
@@ -409,4 +414,4 @@ def main(
         file=__file__,
     )
 
-    return dax, demiss
+    return dax, demiss, Elim, dmix
