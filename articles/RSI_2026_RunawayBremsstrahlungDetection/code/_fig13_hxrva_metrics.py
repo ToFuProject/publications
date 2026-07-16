@@ -322,14 +322,14 @@ def main(
 
                 data = dmetrics[rei][dmetrics_plot[km]['key']]['data']
 
-                im = ax.imshow(
+                im = ax.contour(
+                    angle0,
+                    angle1,
                     data.T,
-                    extent=extent,
-                    origin='lower',
                     cmap=plt.cm.viridis,
-                    interpolation='nearest',
                     vmin=dvmin[km],
                     vmax=dvmax[km],
+                    levels=10,
                 )
 
                 # colorbar
