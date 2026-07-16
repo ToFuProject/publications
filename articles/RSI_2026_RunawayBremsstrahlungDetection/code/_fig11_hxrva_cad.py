@@ -47,7 +47,7 @@ def main(
     angle0=None,
     angle1=None,
     # plot
-    figsize=(14, 10),
+    figsize=(5, 7),
     # figsize=(8, 10),
     fontsize=14,
     # save
