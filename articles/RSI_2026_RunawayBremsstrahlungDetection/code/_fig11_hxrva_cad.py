@@ -47,7 +47,7 @@ def main(
     angle0=None,
     angle1=None,
     # plot
-    figsize=(5, 7),
+    figsize=(5, 4),
     # figsize=(8, 10),
     fontsize=14,
     # save
@@ -109,9 +109,9 @@ def main(
     # --------------
 
     dmargin = {
-        'left': 0.05, 'right': 0.90,
-        'bottom': 0.06, 'top': 0.93,
-        'wspace': 0.18, 'hspace': 0.20,
+        'left': 0.03, 'right': 0.97,
+        'bottom': 0.06, 'top': 0.97,
+        'wspace': 0.30, 'hspace': 0.30,
     }
 
     fig = plt.figure(figsize=figsize)
@@ -128,11 +128,11 @@ def main(
     ax = fig.add_subplot(gs[:, 0], aspect='auto')
 
     ax.text(
-        0.01,
-        0.99,
+        0.0,
+        1.0,
         '(a)',
         horizontalalignment='left',
-        verticalalignment='top',
+        verticalalignment='bottom',
         fontsize=fontsize,
         fontweight='bold',
         transform=ax.transAxes,
@@ -143,10 +143,10 @@ def main(
     # --------------
     # axes - View
 
-    ax = fig.add_subplot(gs[:-2, 1], aspect='equal')
+    ax = fig.add_subplot(gs[:-3, 1], aspect='equal')
 
     ax.set_title(
-        "iview from a point-sphere camera model",
+        "point-sphere camera view",
         fontsize=fontsize,
         fontweight='bold',
     )
@@ -154,18 +154,20 @@ def main(
         r"$\theta_0$",
         fontsize=fontsize,
         fontweight='bold',
+        labelpad=0,
     )
     ax.set_ylabel(
         r"$\theta_1$",
         fontsize=fontsize,
         fontweight='bold',
+        labelpad=-12,
     )
 
     ax.text(
-        0.01,
+        -0.05,
         1.01,
         '(b)',
-        horizontalalignment='left',
+        horizontalalignment='right',
         verticalalignment='bottom',
         fontsize=fontsize,
         fontweight='bold',
@@ -223,7 +225,7 @@ def main(
             extent=extent,
             origin='lower',
             aspect='equal',
-            cmap=plt.cm.gray,
+            cmap=plt.cm.gray_r,
             interpolation='nearest',
             vmin=0,
             vmax=90,
