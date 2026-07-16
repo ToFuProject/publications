@@ -16,3 +16,4 @@ from ._fig07_responsivities import main as fig07_responsivities
 from ._fig08_perfs_single import main as fig08_perfs_single
 from ._fig09_perfs_scans import main as fig09_perfs_scans
 from ._fig12_hxrva_images import main as fig12_hxrva_images
+from ._fig13_hxrva_metrics import main as fig13_hxrva_metrics

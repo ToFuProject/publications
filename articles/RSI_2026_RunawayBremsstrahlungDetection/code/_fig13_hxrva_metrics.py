@@ -58,6 +58,7 @@ def main(
     angle1=None,
     # plot params
     dvmax=None,
+    dvmin=None,
     # plot
     dmargin=None,
     figsize=None,
@@ -136,16 +137,6 @@ def main(
     if fontsize is None:
         fontsize = _FONTSIZE
 
-    if dvmax is None:
-        dvmax = {}
-
-    kcase = list(cases.keys())[0]
-    for rei in re:
-        if dvmax.get(rei) is None:
-            dvmax[rei] = np.nanmax(
-                dsig_los[kcase][krays_max][rei]['RE']['ff']['data']
-            )
-
     # -------------
     # prepare
     # -------------
@@ -166,17 +157,39 @@ def main(
     # loop on cases for axes
     # ----------------------
 
-    dmerits_plot = {
+    dmetrics_plot = {
         0: {
+            'key': 'xi',
             'tit': 'xi',
         },
         1: {
+            'key': 'kappa',
             'tit': 'kappa',
         },
         2: {
-            'tit': 'abs',
+            'key': 'meas_RE_diff',
+            'tit': r'$\delta \epsilon_{ff}^{RE}$',
+        },
+        3: {
+            'key': 'meas_RE_headon',
+            'tit': r"$\epsilon_{ff}^{RE}$",
         },
     }
+
+    # -----------
+    # vmin, vmax
+
+    if dvmax is None:
+        dvmax = {}
+    if dvmin is None:
+        dvmin = {}
+
+    lm = sorted(dmetrics_plot.keys())
+    for km in lm:
+        if dvmax.get(km) is None:
+            dvmax[km] = np.nanmax([dmetrics[rei][km]['data'] for rei in re])
+        if dvmin.get(km) is None:
+            dvmin[km] = dvmax[km] / 1000
 
     # -------------
     # prepare fig
@@ -185,19 +198,19 @@ def main(
     if dmargin is None:
         dmargin = {
             'left': 0.05, 'right': 0.90,
-            'bottom': 0.06, 'top': 0.93,
+            'bottom': 0.20, 'top': 0.93,
             'wspace': 0.18, 'hspace': 0.20,
         }
         dmargin_cbar = {
             'left': 0.93, 'right': 0.97,
-            'bottom': 0.06, 'top': 0.93,
+            'bottom': 0.06, 'top': 0.20,
             'wspace': 0.18, 'hspace': 0.20,
         }
 
     fig = plt.figure(figsize=figsize)
 
-    gs = gridspec.GridSpec(ncols=3, nrows=len(re), **dmargin)
-    gs_cbar = gridspec.GridSpec(ncols=1, nrows=len(re), **dmargin_cbar)
+    gs = gridspec.GridSpec(ncols=4, nrows=len(re), **dmargin)
+    gs_cbar = gridspec.GridSpec(ncols=4, nrows=1, **dmargin_cbar)
     dax = {}
 
     # ----------------------
@@ -223,7 +236,6 @@ def main(
     # ----------------------
 
     ax0 = None
-    lm = sorted(dmerits_plot.keys())
     for ire, rei in enumerate(re):
         for im, km in enumerate(lm):
 
@@ -238,7 +250,7 @@ def main(
             )
             if ire == 0:
                 ax.set_title(
-                    dmerits[km]['tit'],
+                    dmetrics_plot[km]['tit'],
                     fontsize=fontsize,
                     fontweight='bold',
                 )
@@ -269,20 +281,21 @@ def main(
 
             dax[f'{rei}_{km}'] = ax
 
-        # ---------
-        # colorbar
+            # ---------
+            # colorbar
 
-        ax = fig.add_subplot(
-            gs_cbar[ire, 0],
-            aspect='auto',
-        )
-        ax.set_title(
-            str(units),
-            fontsize=fontsize,
-            fontweight='bold',
-        )
+            if ire == 0:
+                ax = fig.add_subplot(
+                    gs_cbar[0, im],
+                    aspect='auto',
+                )
+                ax.set_title(
+                    str(units),
+                    fontsize=fontsize,
+                    fontweight='bold',
+                )
 
-        dax[f'{rei}_cbar'] = ax
+                dax[f'{km}_cbar'] = ax
 
     dax = ds._generic_check._check_dax(dax)
 
@@ -299,52 +312,29 @@ def main(
     # --------------
 
     for ire, rei in enumerate(re):
-        for icase, (kcase, vcase) in enumerate(cases.items()):
+        for im, km in enumerate(lm):
 
-            kax = f"{rei}_{kcase}"
+            kax = f"{rei}_{km}"
             if dax.get(kax) is not None:
                 ax = dax[kax]['handle']
 
-                data = dsig_los[kcase][krays_max][rei]['RE']['ff']['data']
+                data = dmetrics[rei][km]['data']
 
+                import pdb; pdb.set_trace()     # DB
                 im = ax.imshow(
                     data.T,
                     extent=extent,
                     origin='lower',
                     cmap=plt.cm.viridis,
                     interpolation='nearest',
-                    vmin=0,
-                    vmax=dvmax[rei],
+                    vmin=dvmin[km],
+                    vmax=dvmax[km],
                 )
 
-                if icase == len(cases) - 1:
-                    ax = dax[f'{rei}_cbar']['handle']
+                # colorbar
+                if ire == 0:
+                    ax = dax[f'{km}_cbar']['handle']
                     plt.colorbar(im, cax=ax)
-
-        # ---------
-        # diff
-
-        kax = f"{rei}_diff"
-        if dax.get(kax) is not None:
-            ax = dax[kax]['handle']
-
-            kcase = [
-                k0 for k0, v0 in cases.items()
-                if all([v1 for v1 in v0.values()])
-            ][0]
-            data = dsig_los[kcase][krays_max][rei]['RE']['ff']['data']
-            data_back = dsig_los[kcase][krays_min][rei]['RE']['ff']['data']
-            diff = data - data_back[::-1, :]
-
-            im = ax.imshow(
-                diff.T,
-                extent=extent,
-                origin='lower',
-                cmap=plt.cm.viridis,
-                interpolation='nearest',
-                vmin=0,
-                vmax=dvmax[rei],
-            )
 
     # ----------
     # save
