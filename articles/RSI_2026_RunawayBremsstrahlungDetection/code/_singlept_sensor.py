@@ -1,15 +1,13 @@
-import os
 import copy
 
 
 import numpy as np
 import scipy.integrate as scpinteg
 import astropy.units as asunits
-import datastock as ds
 import tofu as tf
 
 
-from ._load_spect import _PATH_INPUTS
+from ._fig11_hxrva_cad import _PFE_CONFIG, _PFE_COLL, _add_ptcam
 from . import _perfs
 
 
@@ -17,16 +15,6 @@ from . import _perfs
 # #######################################
 #           DEFAULTS
 # #######################################
-
-
-_PFE_CONFIG = os.path.join(
-    _PATH_INPUTS,
-    'TFG_Config_ExpSPARC_SPARC-V2_sh00000_Vers1.8.18.npz',
-)
-_PFE_COLL = os.path.join(
-    _PATH_INPUTS,
-    'Inversion_HXRVA_dvezinet_20260713-154229.npz',
-)
 
 
 _RE = ['avalanche 10 MeV', 'dreicer']
@@ -374,127 +362,6 @@ def main(
         angle0, angle1,
         ne, jp, jp_frac, Te_eV,
     )
-
-
-# ############################################
-# ############################################
-#       add ptcam
-# ############################################
-
-
-def _add_ptcam(
-    coll=None,
-    key_cam=None,
-    angle0=None,
-    angle1=None,
-    config=None,
-):
-
-    # -------
-    # inputs
-    # -------
-
-    # angle0
-    if angle0 is None:
-        angle0 = (30*np.pi/180) * np.linspace(-1, 1, 180)
-
-    angle0 = ds._generic_check._check_flat1darray(
-        angle0, "angle0",
-        dtype=float,
-        unique=True,
-    )
-
-    # angle1
-    if angle1 is None:
-        angle1 = (40*np.pi/180) * np.linspace(-1, 1, 240)
-
-    angle1 = ds._generic_check._check_flat1darray(
-        angle1, "angle1",
-        dtype=float,
-        unique=True,
-    )
-    # -------
-    # angles ref
-    # -------
-
-    ref_rays = ('nangle0', 'nangle1')
-    nrays = (angle0.size, angle1.size)
-    coll.add_ref(ref_rays[0], size=nrays[0])
-    coll.add_ref(ref_rays[1], size=nrays[1])
-
-    # ---------
-    # angles
-    # ---------
-
-    coll.add_data(
-        'angle0',
-        data=angle0*180/np.pi,
-        units='deg',
-        ref=ref_rays[0],
-    )
-
-    coll.add_data(
-        'angle1',
-        data=angle1*180/np.pi,
-        units='deg',
-        ref=ref_rays[1],
-    )
-
-    # ---------------
-    # add single points
-    # ---------------
-
-    if key_cam is None:
-        key_cam = sorted(coll.dobj['camera'].keys())
-
-    dkrays = {}
-    for kcam in key_cam:
-
-        # -------------
-        # cent, vect
-
-        cent = np.mean(coll.get_camera_cents_xyz(kcam), axis=1)
-        phi0 = np.arctan2(cent[1], cent[0])
-        ephi0 = np.r_[-np.sin(phi0), np.cos(phi0), 0]
-
-        vect = {}
-        dvect = coll.get_camera_unit_vectors(kcam)
-        ls = ['x', 'y', 'z']
-        for kv in ['nin', 'e0', 'e1']:
-            vect[kv] = np.array([dvect[f'{kv}_{ss}'] for ss in ls])
-            if vect[kv].ndim > 1:
-                laxis = range(1, vect[kv].ndim)
-                vect[kv] = np.mean(vect[kv], axis=tuple(laxis))
-
-        # adjust e0
-        e1 = np.r_[0, 0, 1.]
-        e0 = np.cross(vect['nin'], e1)
-        e0 = e0 / np.linalg.norm(e0)
-        if np.sum(e0 * ephi0) < 0.:
-            e0 = -e0
-        vect['e0'] = e0
-        e1 = np.cross(vect['nin'], e0)
-        e1 = e1 / np.linalg.norm(e1)
-        if e1[2] < 0:
-            e1 = -e1
-        vect['e1'] = e1
-
-        # --------------------
-        # using tofu built-in
-
-        kray = f"{kcam}_pt"
-        coll.add_single_point_camera2d(
-            key=kray,
-            cent=cent,
-            angle0='angle0',
-            angle1='angle1',
-            config=config,
-            **vect,
-        )
-
-        dkrays[kcam] = kray
-
-    return dkrays, angle0, angle1
 
 
 # ############################################
