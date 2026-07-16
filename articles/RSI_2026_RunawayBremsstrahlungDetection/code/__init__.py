@@ -18,3 +18,4 @@ from ._fig09_perfs_scans import main as fig09_perfs_scans
 from ._fig11_hxrva_cad import main as fig11_hxrva_cad
 from ._fig12_hxrva_images import main as fig12_hxrva_images
 from ._fig13_hxrva_metrics import main as fig13_hxrva_metrics
+from ._fig14_bolo_cad import main as fig14_bolo_cad
