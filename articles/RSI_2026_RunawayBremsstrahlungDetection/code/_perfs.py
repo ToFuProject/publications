@@ -405,7 +405,7 @@ def main(
         raise Exception(msg)
 
     return (
-        demiss_integ, dsignal, ddist,
+        demiss_integ, dsignal, ddist, dmix,
         total_headon, diff_RE, diff_max,
         dang, theta,
         lresp, ldist,

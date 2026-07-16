@@ -65,7 +65,6 @@ _DMARKER = {
 }
 
 
-
 _LCOMP = ['maxwell bb', 'maxwell fb', 'maxwell ff', 'RE ff']
 _DCOLOR = {
     'maxwell bb': {
@@ -129,7 +128,7 @@ def main(
     dout = {}
     for kcase, vcase in dcases.items():
         (
-            demiss_integ, dsignal, ddist,
+            demiss_integ, dsignal, ddist, dmix,
             total_headon, diff_RE, diff_max,
             dang, theta,
             lresp, ldist,
@@ -160,6 +159,12 @@ def main(
     jp = np.unique(ddist['plasma']['jp_Am2']['data'])[0]
 
     width = 0.2
+
+    lk = list(dmix.keys())
+    lc = [np.unique(dmix[kk])[0] for kk in lk]
+    inds = np.argsort(lc)[::-1]
+    lstr = [f"{lk[ss]} {lc[ss]*100:3.1f} \\%" for ss in inds]
+    tit_mix = ",  ".join(lstr)
 
     # --------------
     # prepare axes
@@ -194,7 +199,9 @@ def main(
         Teu = np.unique(vcase['ddist']['plasma']['Te_eV']['data'])
         indTe = np.argmin(np.abs(Teu - vcase['Te_eV']))
         Te_eV = vcase['ddist']['plasma']['Te_eV']['data'][(0, indTe, 0)]
-        jp_frac = np.unique(vcase['ddist']['plasma']['jp_fraction_re']['data'])[0]
+        jp_frac = np.unique(
+            vcase['ddist']['plasma']['jp_fraction_re']['data']
+        )[0]
 
         # tit
         tit = (
@@ -202,6 +209,7 @@ def main(
             + r"$j_P$" + f" = {jp*1e-6:1.0f}" + r"$MA/m^2$" + "\n"
             + r"$T_e$" + f" = {Te_eV*1e-3:2.1f} keV,  "
             + r"$F_{RE}$" + f" = {jp_frac:2.1f}\n"
+            + f"{tit_mix}\n"
             + vcase['re']
         )
 

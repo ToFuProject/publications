@@ -98,7 +98,7 @@ def main(
     demiss_integ = {}
     for rei in re:
         (
-            demiss_integ[rei], dsignal, ddist,
+            demiss_integ[rei], dsignal, ddist, dmix,
             total_headon, diff_RE, diff_max,
             dang, theta,
             lresp, ldist,
@@ -357,6 +357,11 @@ def main(
             },
             'meas_RE_headon': {
                 'data': RE_headon,
+                'units': units,
+                'ref': ref,
+            },
+            'meas_headon': {
+                'data': total_headon,
                 'units': units,
                 'ref': ref,
             },

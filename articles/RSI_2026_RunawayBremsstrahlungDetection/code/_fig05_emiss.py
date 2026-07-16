@@ -24,8 +24,7 @@ _PATH_HERE = os.path.dirname(__file__)
 _PATH_PAPER = os.path.dirname(_PATH_HERE)
 
 
-_RE = 'avalanche 100 keV'
-
+_RE = 'avalanche 10 MeV'
 _JP_FRAC = np.linspace(0.025, 0.975, 39)
 
 _DDMIX = {

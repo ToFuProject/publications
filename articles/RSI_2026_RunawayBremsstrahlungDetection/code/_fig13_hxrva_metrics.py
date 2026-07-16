@@ -95,7 +95,7 @@ def main(
     # compute
     # --------------
 
-    cases = {0: {'helicity': True, 'pitch': True, 'ne': True}},
+    cases = {0: {'helicity': True, 'pitch': True, 'ne': True}}
     (
         coll, config,
         dangles, dsig_los, dmetrics,
@@ -171,8 +171,8 @@ def main(
             'tit': r'$\delta \epsilon_{ff}^{RE}$',
         },
         3: {
-            'key': 'meas_RE_headon',
-            'tit': r"$\epsilon_{ff}^{RE}$",
+            'key': 'meas_headon',
+            'tit': r"$\epsilon^{head-on}$",
         },
     }
 
@@ -185,9 +185,11 @@ def main(
         dvmin = {}
 
     lm = sorted(dmetrics_plot.keys())
-    for km in lm:
+    for km, vm in dmetrics_plot.items():
         if dvmax.get(km) is None:
-            dvmax[km] = np.nanmax([dmetrics[rei][km]['data'] for rei in re])
+            dvmax[km] = np.nanmax([
+                dmetrics[rei][vm['key']]['data'] for rei in re
+            ])
         if dvmin.get(km) is None:
             dvmin[km] = dvmax[km] / 1000
 
@@ -198,12 +200,12 @@ def main(
     if dmargin is None:
         dmargin = {
             'left': 0.05, 'right': 0.90,
-            'bottom': 0.20, 'top': 0.93,
+            'bottom': 0.10, 'top': 0.93,
             'wspace': 0.18, 'hspace': 0.20,
         }
         dmargin_cbar = {
-            'left': 0.93, 'right': 0.97,
-            'bottom': 0.06, 'top': 0.20,
+            'left': 0.05, 'right': 0.90,
+            'bottom': 0.05, 'top': 0.10,
             'wspace': 0.18, 'hspace': 0.20,
         }
 
@@ -318,9 +320,8 @@ def main(
             if dax.get(kax) is not None:
                 ax = dax[kax]['handle']
 
-                data = dmetrics[rei][km]['data']
+                data = dmetrics[rei][dmetrics_plot[km]['key']]['data']
 
-                import pdb; pdb.set_trace()     # DB
                 im = ax.imshow(
                     data.T,
                     extent=extent,
@@ -347,4 +348,4 @@ def main(
         file=__file__,
     )
 
-    return dax
+    return dax, dmetrics

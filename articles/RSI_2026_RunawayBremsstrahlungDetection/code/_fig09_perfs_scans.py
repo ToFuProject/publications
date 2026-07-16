@@ -3,6 +3,7 @@ import string
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
 import matplotlib.gridspec as gridspec
 import datastock as ds
 
@@ -26,32 +27,32 @@ _DLEVELS = {
     'bolo': {
         'xi': np.r_[1e-6, 1e-5, 5e-5, 1e-4, 1e-3],
         'kappa': np.r_[10, 20, 30, 50, 70, 80],
-        'total': 10,
+        'total': np.r_[0.1, 0.3, 0.5, 0.7, 0.9],
     },
     'cvd_bare': {
         'xi': np.r_[1e-5, 5e-5, 1e-4, 5e-4, 1e-3],
         'kappa': np.r_[10, 20, 30, 50, 70, 80, 90],
-        'total': 10,
+        'total': np.r_[0.1, 0.3, 0.5, 0.7, 0.9],
     },
     'cvd_filter': {
         'xi': np.r_[1e-4, 1e-3, 1e-2, 1e-1, 0.5],
         'kappa': np.r_[10, 20, 30, 50, 70, 80, 90],
-        'total': 10,
+        'total': np.r_[0.1, 0.3, 0.5, 0.7, 0.9],
     },
     'spectro': {
         'xi': 10,
         'kappa': 10,
-        'total': 10,
+        'total': np.r_[0.1, 0.3, 0.5, 0.7, 0.9],
     },
     'mesxr_11_keV': {
         'xi': np.r_[0.01, 0.1, 0.2, 0.3],
         'kappa': 10,
-        'total': 10,
+        'total': np.r_[0.1, 0.3, 0.5, 0.7, 0.9],
     },
     'mehxr_60_keV': {
         'xi': 10,
         'kappa': 10,
-        'total': 10,
+        'total': np.r_[0.1, 0.3, 0.5, 0.7, 0.9],
     },
 }
 
@@ -105,7 +106,7 @@ def main(
     dout = {}
     for ii, rei in enumerate(re):
         (
-            demiss_integ, dsignal, ddist,
+            demiss_integ, dsignal, ddist, dmix,
             total_headon, diff_RE, diff_max,
             dang, theta,
             lresp, ldist,
@@ -155,17 +156,33 @@ def main(
     Te_case = np.array([_DCASES[kk]['Te_eV'] for kk in lkcase])
     Fre_case = np.array([_DCASES[kk]['jp_fraction_re'] for kk in lkcase])
 
+    ne = np.unique(ddist['plasma']['ne_m3']['data'])[0]
+    jp = np.unique(ddist['plasma']['jp_Am2']['data'])[0]
+
+    lk = list(dmix.keys())
+    lc = [np.unique(dmix[kk])[0] for kk in lk]
+    inds = np.argsort(lc)[::-1]
+    lstr = [f"{lk[ss]} {lc[ss]*100:3.1f} \\%" for ss in inds]
+    tit_mix = ",  ".join(lstr)
+
+    tit = (
+        r"$n_e$" + f" = {ne:1.0e}" + r"$/m^3$,  "
+        + r"$j_P$" + f" = {jp*1e-6:1.0f}" + r"$MA/m^2$" + "\n"
+        + tit_mix
+    )
+
     # --------------
     # prepare axes
     # --------------
 
     dmargin = {
-        'left': 0.08, 'right': 0.98,
+        'left': 0.08, 'right': 0.90,
         'bottom': 0.04, 'top': 0.98,
         'wspace': 0.10, 'hspace': 0.10,
     }
 
     fig = plt.figure(figsize=figsize)
+    fig.suptitle(tit, fontsize=fontsize, fontweight='bold')
 
     gs = gridspec.GridSpec(ncols=nre, nrows=nresp, **dmargin)
     dax = {}
@@ -234,6 +251,20 @@ def main(
     # plot vs theta
     # --------------
 
+    dcolor = {
+        'xi': {
+            'color': 'k',
+            'label': r'$\xi_{RE} = \frac{\Delta_{ff}^{RE}}{M_i}$',
+        },
+        'kappa': {
+            'color': 'b',
+            'label': r"$\kappa = \frac{\Delta_{ff}^{RE}}{\Delta_{ff}^{Max}}$",
+        },
+        'tot': {
+            'color': 'r',
+            'label': r"$M_i$",
+        },
+    }
     for ie, rei in enumerate(re):
         for iresp, kresp in enumerate(lresp):
 
@@ -254,9 +285,10 @@ def main(
                     ddist['plasma']['Te_eV']['data'][sli] * 1e-3,
                     ddist['plasma']['jp_fraction_re']['data'][sli],
                     dout[rei]['xi'][iresp],
-                    colors='k',
+                    colors=dcolor['xi'],
                     linestyles='-',
                     levels=levels,
+                    label='xi',
                 )
                 ax.clabel(
                     cs,
@@ -264,6 +296,9 @@ def main(
                     fmt=lambda vv: f"{vv:2.1e}",
                     fontsize=12,
                 )
+
+                # -------------
+                # kappa range
 
                 # set levels kappa
                 if _DLEVELS.get(kresp, {}).get('kappa') is not None:
@@ -274,11 +309,15 @@ def main(
                     ddist['plasma']['Te_eV']['data'][sli] * 1e-3,
                     ddist['plasma']['jp_fraction_re']['data'][sli],
                     dout[rei]['kappa'][iresp],
-                    colors='b',
+                    colors=dcolor['kappa'],
                     linestyles='-',
                     levels=levels,
+                    label='kappa',
                 )
                 ax.clabel(cs, cs.levels, fontsize=12)
+
+                # -------------
+                # total range
 
                 # set levels total
                 if _DLEVELS.get(kresp, {}).get('total') is not None:
@@ -290,9 +329,10 @@ def main(
                     ddist['plasma']['Te_eV']['data'][sli] * 1e-3,
                     ddist['plasma']['jp_fraction_re']['data'][sli],
                     total / np.nanmax(total),
-                    colors='g',
+                    colors=dcolor['total'],
                     linestyles='-',
                     levels=levels,
+                    label='total_headon_norm',
                 )
                 ax.clabel(cs, cs.levels, fontsize=12)
 
@@ -313,6 +353,22 @@ def main(
                     ax.set_xlim(0, 2.5)
                     ax.set_ylim(0, 1)
                     ax.grid(True)
+
+                if ie == len(re) - 1:
+                    lh = [
+                        mlines.Line2D(
+                            [], [],
+                            ls='-',
+                            c=cc,
+                            label=dcolor[kk]['label'],
+                        )
+                        for kk, cc in dcolor.items()
+                    ]
+                    ax.legend(
+                        handles=lh,
+                        loc='upper right',
+                        bbox_to_anchor=(1.2, 1.),
+                    )
 
     # --------------
     # save
