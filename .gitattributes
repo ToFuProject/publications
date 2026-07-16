@@ -23,3 +23,4 @@ articles/RSI_2026_RunawayBremsstrahlungDetection/figures/fig08_perfs_single.png 
 articles/RSI_2026_RunawayBremsstrahlungDetection/figures/fig07_responsivities.png filter=lfs diff=lfs merge=lfs -text
 articles/RSI_2026_RunawayBremsstrahlungDetection/inputs/260715_SCRAM86_H_data.npz filter=lfs diff=lfs merge=lfs -text
 articles/RSI_2026_RunawayBremsstrahlungDetection/inputs/260715_SCRAM86_He_data.npz filter=lfs diff=lfs merge=lfs -text
+articles/RSI_2026_RunawayBremsstrahlungDetection/figures/HXR_MPP200_zoom.png filter=lfs diff=lfs merge=lfs -text
