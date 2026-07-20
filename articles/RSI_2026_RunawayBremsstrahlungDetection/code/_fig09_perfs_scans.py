@@ -28,12 +28,12 @@ _DLEVELS = {
     'bolo': {
         'xi': np.r_[1e-6, 5e-6, 1e-5, 5e-5, 1e-4],
         'kappa': np.r_[10, 30, 50, 80]/100,
-        'total_headon': np.r_[0.1, 0.5, 0.9],
+        'total_headon': np.r_[0.1, 0.9],
     },
     'cvd_bare': {
         'xi': np.r_[5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3],
         'kappa': np.r_[10, 30, 50, 80]/100,
-        'total_headon': np.r_[0.1, 0.3, 0.5, 0.7, 0.9],
+        'total_headon': np.r_[0.1, 0.3, 0.5, 0.9],
     },
     'cvd_filter': {
         'xi': np.r_[5e-5, 1e-4, 5e-4, 1e-3, 1e-2, 1e-1, 0.5],
