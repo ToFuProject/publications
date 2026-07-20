@@ -37,11 +37,13 @@ _DR = {
 }
 
 
+_CW = True
+_REFLECT_ANG = 15*np.pi/180
 _DSENSORS = {
     'in': {
         'pp': 0,
         'R': 2.55,
-        'cw': False,
+        'cw': _CW,
         'rplasma_ratio': 0.7,
         'color': 'b',
         'marker': '.',
@@ -57,36 +59,9 @@ _DSENSORS = {
         },
     },
     'ex1': {
-        'pp': 1,
+        'pp': 3,
         'R': 6,
-        'cw': False,
-        'color': 'g',
-        'width': 0.10,
-        'dist': 4,
-        'marker': '.',
-        'ms': 2,
-        'alpha': 0.6,
-        'shielding': True,
-        'opening': True,
-        'wall': True,
-        'beamdump': True,
-        'neutrons_length': 1,
-        'neutrons_width': 0.2,
-        'reflector': {
-            'angle': 15*np.pi/180,
-            'R': _DR['PP_R'][1] + 0.1,
-            'width': 0.25,
-            'color': 'k',
-            'lw': 2,
-        },
-        'text': {
-            'str': "(2)",
-        },
-    },
-    'ex2': {
-        'pp': 2,
-        'R': 6,
-        'cw': False,
+        'cw': _CW,
         'color': 'g',
         'width': 0.10,
         'dist': 4,
@@ -103,10 +78,37 @@ _DSENSORS = {
             'str': "(1)",
         },
     },
-    'ex3': {
-        'pp': 3,
+    'ex2': {
+        'pp': 2,
         'R': 6,
-        'cw': False,
+        'cw': _CW,
+        'color': 'g',
+        'width': 0.10,
+        'dist': 4,
+        'marker': '.',
+        'ms': 2,
+        'alpha': 0.6,
+        'shielding': True,
+        'opening': True,
+        'wall': True,
+        'beamdump': True,
+        'neutrons_length': 1,
+        'neutrons_width': 0.2,
+        'text': {
+            'str': "(2)",
+        },
+        'reflector': {
+            'angle': -_REFLECT_ANG,
+            'R': _DR['PP_R'][1] + 0.1,
+            'width': 0.25,
+            'color': 'k',
+            'lw': 2,
+        },
+    },
+    'ex3': {
+        'pp': 1,
+        'R': 6,
+        'cw': _CW,
         'color': (0.1, 0.9, 0.1),
         'width': 0.10,
         'dist': 4,
@@ -120,7 +122,7 @@ _DSENSORS = {
         'neutrons_length': 1,
         'neutrons_width': 0.2,
         'reflector': {
-            'angle': -15*np.pi/180,
+            'angle': _REFLECT_ANG,
             'R': _DR['PP_R'][0],
             'width': 0.25,
             'color': 'k',
@@ -285,47 +287,49 @@ def main(
                         **dinput[k0]['prop'],
                     )
 
-        # --------------
-        # add arrows
+        # -----------------------
+        # add arrows - RE, Ip, Bt
 
+        ltxt = ['RE', 'Ip, Bt']
+        colors = ['r', 'tab:purple']
+        lha = ['left', 'right']
+        lva = ['bottom', 'top']
         R = dinput['R0']['data'][0] + 0.5 * dinput['rplasma']['data'][0]
-        phi = np.r_[130, 170] * np.pi / 180
-        # dist = R * np.hypot(
-        # np.cos(phi[0]) - np.cos(phi[1]),
-        # np.sin(phi[0]) - np.sin(phi[1]),
-        # )
-        # rad = (R * (1 - np.cos(np.abs(np.diff(phi)/2))) / dist)[0]
-        rad = -0.3
-        ax.annotate(
-            "",
-            xy=(R*np.cos(phi[0]), R*np.sin(phi[0])),
-            xycoords='data',
-            xytext=(R*np.cos(phi[1]), R*np.sin(phi[1])),
-            textcoords='data',
-            color='r',
-            fontweight='bold',
-            fontsize=fontsize,
-            horizontalalignment='center',
-            verticalalignment='center',
-            arrowprops=dict(
-                arrowstyle="->",
-                lw=1.5,
-                color='r',
-                shrinkA=5, shrinkB=5,
-                patchA=None, patchB=None,
-                connectionstyle=f'arc3,rad={rad}',
-            ),
-        )
-        ax.text(
-            R*np.cos(np.mean(phi)),
-            R*np.sin(np.mean(phi)),
-            "RE",
-            color='r',
-            horizontalalignment='left',
-            verticalalignment='top',
-            fontweight='bold',
-            fontsize=fontsize,
-        )
+        phi = np.array([[-130, -170], [30, 70]]) * np.pi / 180
+        lr = 0.3 * np.r_[1, -1]
+
+        for phii, txt, col, ha, va, r in zip(phi, ltxt, colors, lha, lva, lr):
+
+            ax.annotate(
+                "",
+                xy=(R*np.cos(phii[0]), R*np.sin(phii[0])),
+                xycoords='data',
+                xytext=(R*np.cos(phii[1]), R*np.sin(phii[1])),
+                textcoords='data',
+                color=col,
+                fontweight='bold',
+                fontsize=fontsize,
+                horizontalalignment='center',
+                verticalalignment='center',
+                arrowprops=dict(
+                    arrowstyle="->",
+                    lw=1.5,
+                    color=col,
+                    shrinkA=5, shrinkB=5,
+                    patchA=None, patchB=None,
+                    connectionstyle=f'arc3,rad={r}',
+                ),
+            )
+            ax.text(
+                R*np.cos(np.mean(phii)),
+                R*np.sin(np.mean(phii)),
+                txt,
+                color=col,
+                horizontalalignment=ha,
+                verticalalignment=va,
+                fontweight='bold',
+                fontsize=fontsize,
+            )
 
         # --------------
         # plot port plug
@@ -566,7 +570,7 @@ def main(
 
             ax.plot(
                 v0['rplasma_norm'],
-                v0['theta_vs_B'] * 180 / np.pi,
+                180 - v0['theta_vs_B'] * 180 / np.pi,
                 marker=v0.get('marker', '.'),
                 ms=v0.get('ms', 6),
                 color=v0['color'],
@@ -580,7 +584,7 @@ def main(
                     ax.transAxes, ax.transData,
                 )
                 ind = v0['rplasma_norm'] > 0.9
-                yy = v0['theta_vs_B'][ind]
+                yy = np.pi - v0['theta_vs_B'][ind]
                 if k0 == 'ex3':
                     yy = np.mean(yy[yy < np.pi/4])
                 else:
@@ -1026,17 +1030,17 @@ def _sensors(
             frac_v = v0['dogleg']['frac_v']
             xx = np.r_[
                 cent[0],
-                ppc[0] - ephi[0] * frac_v * width/2 - eR[0] * length/2,
-                ppc[0] - ephi[0] * frac_v * width/2,
+                ppc[0] + ephi[0] * frac_v * width/2 - eR[0] * length/2,
                 ppc[0] + ephi[0] * frac_v * width/2,
-                ppc[0] + ephi[0] * frac_v * width/2 + eR[0] * 2*length/3,
+                ppc[0] - ephi[0] * frac_v * width/2,
+                ppc[0] - ephi[0] * frac_v * width/2 + eR[0] * 2*length/3,
             ]
             yy = np.r_[
                 cent[1],
-                ppc[1] - ephi[1] * frac_v * width/2 - eR[1] * length/2,
-                ppc[1] - ephi[1] * frac_v * width/2,
+                ppc[1] + ephi[1] * frac_v * width/2 - eR[1] * length/2,
                 ppc[1] + ephi[1] * frac_v * width/2,
-                ppc[1] + ephi[1] * frac_v * width/2 + eR[1] * 2*length/3,
+                ppc[1] - ephi[1] * frac_v * width/2,
+                ppc[1] - ephi[1] * frac_v * width/2 + eR[1] * 2*length/3,
             ]
 
             dsensors[k0]['dogleg']['x'] = xx
