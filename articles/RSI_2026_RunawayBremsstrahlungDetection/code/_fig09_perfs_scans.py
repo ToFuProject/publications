@@ -9,6 +9,7 @@ import datastock as ds
 
 
 from ._load_spect_anis import _JP_FRAC
+from ._fig05_emiss import _DDMIX
 from . import _perfs
 from ._fig08_perfs_single import _DCASES
 from ._savefig import main as savefig
@@ -25,34 +26,51 @@ _RE = ['dreicer', 'avalanche 100 keV', 'avalanche 10 MeV']
 
 _DLEVELS = {
     'bolo': {
-        'xi': np.r_[1e-6, 1e-5, 5e-5, 1e-4, 1e-3],
-        'kappa': np.r_[10, 20, 30, 50, 70, 80],
-        'total': np.r_[0.1, 0.3, 0.5, 0.7, 0.9],
+        'xi': np.r_[1e-6, 5e-6, 1e-5, 5e-5, 1e-4],
+        'kappa': np.r_[10, 30, 50, 80]/100,
+        'total_headon': np.r_[0.1, 0.5, 0.9],
     },
     'cvd_bare': {
-        'xi': np.r_[1e-5, 5e-5, 1e-4, 5e-4, 1e-3],
-        'kappa': np.r_[10, 20, 30, 50, 70, 80, 90],
-        'total': np.r_[0.1, 0.3, 0.5, 0.7, 0.9],
+        'xi': np.r_[5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3],
+        'kappa': np.r_[10, 30, 50, 80]/100,
+        'total_headon': np.r_[0.1, 0.3, 0.5, 0.7, 0.9],
     },
     'cvd_filter': {
-        'xi': np.r_[1e-4, 1e-3, 1e-2, 1e-1, 0.5],
-        'kappa': np.r_[10, 20, 30, 50, 70, 80, 90],
-        'total': np.r_[0.1, 0.3, 0.5, 0.7, 0.9],
+        'xi': np.r_[5e-5, 1e-4, 5e-4, 1e-3, 1e-2, 1e-1, 0.5],
+        'kappa': np.r_[20, 50, 80, 90, 99, 99.9]/100,
+        'total_headon': np.r_[0.1, 0.5, 0.9],
     },
     'spectro': {
-        'xi': 10,
-        'kappa': 10,
-        'total': np.r_[0.1, 0.3, 0.5, 0.7, 0.9],
+        'xi': np.r_[1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 2e-1, 0.5],
+        'kappa': np.r_[0.01, 99.99]/100,
+        'total_headon': np.r_[0.01, 0.1, 0.3, 0.5, 0.7, 0.9],
     },
     'mesxr_11_keV': {
-        'xi': np.r_[0.01, 0.1, 0.2, 0.3],
-        'kappa': 10,
-        'total': np.r_[0.1, 0.3, 0.5, 0.7, 0.9],
+        'xi': np.r_[0.001, 0.01, 0.1, 0.2, 0.3, 0.5, 0.6, 0.8],
+        'kappa': np.r_[0.01, 99.99]/100,
+        'total_headon': np.r_[0.01, 0.1, 0.3, 0.5, 0.7, 0.9],
     },
     'mehxr_60_keV': {
-        'xi': 10,
-        'kappa': 10,
-        'total': np.r_[0.1, 0.3, 0.5, 0.7, 0.9],
+        'xi': np.r_[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99],
+        'kappa': np.r_[1, 99, 99.9, 99.99, 99.999]/100,
+        'total_headon': np.r_[0.1, 0.3, 0.5, 0.7, 0.9],
+    },
+}
+
+
+_DCOLOR = {
+    'xi': {
+        'color': 'k',
+        'label': r'$\xi_{RE} = \frac{\Delta_{ff}^{RE}}{M_i}$',
+        'fmt': lambda vv: f"{vv:2.1e}",
+    },
+    'kappa': {
+        'color': 'b',
+        'label': r"$\kappa = \frac{\Delta_{ff}^{RE}}{\Delta_{ff}^{Max}}$",
+    },
+    'total_headon': {
+        'color': 'r',
+        'label': r"$M_i$",
     },
 }
 
@@ -98,6 +116,9 @@ def main(
 
     if re is None:
         re = _RE
+
+    if dmix is None:
+        dmix = _DDMIX[1]
 
     # --------------
     # compute
@@ -177,7 +198,7 @@ def main(
 
     dmargin = {
         'left': 0.08, 'right': 0.90,
-        'bottom': 0.04, 'top': 0.98,
+        'bottom': 0.04, 'top': 0.95,
         'wspace': 0.10, 'hspace': 0.10,
     }
 
@@ -251,20 +272,7 @@ def main(
     # plot vs theta
     # --------------
 
-    dcolor = {
-        'xi': {
-            'color': 'k',
-            'label': r'$\xi_{RE} = \frac{\Delta_{ff}^{RE}}{M_i}$',
-        },
-        'kappa': {
-            'color': 'b',
-            'label': r"$\kappa = \frac{\Delta_{ff}^{RE}}{\Delta_{ff}^{Max}}$",
-        },
-        'tot': {
-            'color': 'r',
-            'label': r"$M_i$",
-        },
-    }
+    dcolor = _DCOLOR
     for ie, rei in enumerate(re):
         for iresp, kresp in enumerate(lresp):
 
@@ -272,76 +280,60 @@ def main(
             if dax.get(kax) is not None:
                 ax = dax[kax]['handle']
 
-                # -------------
-                # xi range
+                # ------------------------
+                # loop on xi, kappa, total
 
-                # set levels xi
-                if _DLEVELS.get(kresp, {}).get('xi') is not None:
-                    levels = _DLEVELS[kresp]['xi']
+                for ik, kk in enumerate(['xi', 'kappa', 'total_headon']):
 
-                # plot xi range
-                sli = (0, slice(None), slice(None))
-                cs = ax.contour(
-                    ddist['plasma']['Te_eV']['data'][sli] * 1e-3,
-                    ddist['plasma']['jp_fraction_re']['data'][sli],
-                    dout[rei]['xi'][iresp],
-                    colors=dcolor['xi'],
-                    linestyles='-',
-                    levels=levels,
-                    label='xi',
-                )
-                ax.clabel(
-                    cs,
-                    cs.levels,
-                    fmt=lambda vv: f"{vv:2.1e}",
-                    fontsize=12,
-                )
+                    # norm total
+                    data = dout[rei][kk][iresp]
+                    if kk == 'total_headon':
+                        data = data / np.nanmax(data)
 
-                # -------------
-                # kappa range
+                    # check if constant
+                    vmean = np.nanmean(data)
+                    if np.allclose(data, vmean, atol=0, rtol=1e-6):
 
-                # set levels kappa
-                if _DLEVELS.get(kresp, {}).get('kappa') is not None:
-                    levels = _DLEVELS[kresp]['kappa']
+                        ax.text(
+                            0.5,
+                            0.5 + ik*0.1,
+                            f"<{vmean:2.1e}>",
+                            color=dcolor[kk]['color'],
+                            ha='center',
+                            va='center',
+                            fontsize=fontsize,
+                            fontweight='bold',
+                            transform=ax.transAxes,
+                        )
 
-                # plot kappa
-                cs = ax.contour(
-                    ddist['plasma']['Te_eV']['data'][sli] * 1e-3,
-                    ddist['plasma']['jp_fraction_re']['data'][sli],
-                    dout[rei]['kappa'][iresp],
-                    colors=dcolor['kappa'],
-                    linestyles='-',
-                    levels=levels,
-                    label='kappa',
-                )
-                ax.clabel(cs, cs.levels, fontsize=12)
+                    else:
+                        # set levels
+                        levels = _DLEVELS[kresp][kk]
 
-                # -------------
-                # total range
-
-                # set levels total
-                if _DLEVELS.get(kresp, {}).get('total') is not None:
-                    levels = _DLEVELS[kresp]['total']
-
-                # plot total head-on
-                total = dout[rei]['total_headon'][iresp]
-                cs = ax.contour(
-                    ddist['plasma']['Te_eV']['data'][sli] * 1e-3,
-                    ddist['plasma']['jp_fraction_re']['data'][sli],
-                    total / np.nanmax(total),
-                    colors=dcolor['total'],
-                    linestyles='-',
-                    levels=levels,
-                    label='total_headon_norm',
-                )
-                ax.clabel(cs, cs.levels, fontsize=12)
+                        # plot xi range
+                        sli = (0, slice(None), slice(None))
+                        cs = ax.contour(
+                            ddist['plasma']['Te_eV']['data'][sli] * 1e-3,
+                            ddist['plasma']['jp_fraction_re']['data'][sli],
+                            data,
+                            colors=dcolor[kk]['color'],
+                            linestyles='-',
+                            levels=levels,
+                            label=kk,
+                        )
+                        ax.clabel(
+                            cs,
+                            cs.levels,
+                            fmt=dcolor[kk].get('fmt'),
+                            fontsize=12,
+                        )
 
                 # add case
                 ax.plot(
                     Te_case*1e-3,
                     Fre_case,
                     ls='None',
-                    marker='x',
+                    marker='*',
                     ms=6,
                     color='k',
                 )
@@ -354,12 +346,12 @@ def main(
                     ax.set_ylim(0, 1)
                     ax.grid(True)
 
-                if ie == len(re) - 1:
+                if ie == len(re) - 1 and iresp == 0:
                     lh = [
                         mlines.Line2D(
                             [], [],
                             ls='-',
-                            c=cc,
+                            c=cc['color'],
                             label=dcolor[kk]['label'],
                         )
                         for kk, cc in dcolor.items()
@@ -367,7 +359,7 @@ def main(
                     ax.legend(
                         handles=lh,
                         loc='upper right',
-                        bbox_to_anchor=(1.2, 1.),
+                        bbox_to_anchor=(1.5, 1.),
                     )
 
     # --------------
