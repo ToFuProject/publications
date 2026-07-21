@@ -28,12 +28,12 @@ _RE = ['dreicer', 'avalanche 100 keV', 'avalanche 10 MeV']
 _DLEVELS = {
     'bolo': {
         'xi': np.r_[1e-6, 5e-6, 1e-5, 5e-5, 1e-4],
-        'kappa': np.r_[10, 30, 50, 80]/100,
+        'kappa': np.r_[20, 50, 80]/100,
         'total_headon': np.r_[0.1, 0.9],
     },
     'cvd_bare': {
         'xi': np.r_[5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3],
-        'kappa': np.r_[10, 30, 50, 80]/100,
+        'kappa': np.r_[20, 50, 80]/100,
         'total_headon': np.r_[0.1, 0.3, 0.5, 0.9],
     },
     'cvd_filter': {
@@ -43,12 +43,12 @@ _DLEVELS = {
     },
     'spectro': {
         'xi': np.r_[1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 2e-1, 0.5],
-        'kappa': np.r_[0.01, 99.99]/100,
+        'kappa': np.r_[50, 80, 99]/100,
         'total_headon': np.r_[0.01, 0.1, 0.3, 0.5, 0.7, 0.9],
     },
     'mesxr_11_keV': {
         'xi': np.r_[0.001, 0.01, 0.1, 0.2, 0.3, 0.5, 0.6, 0.8],
-        'kappa': np.r_[0.01, 99.99]/100,
+        'kappa': np.r_[50, 80, 99]/100,
         'total_headon': np.r_[0.01, 0.1, 0.3, 0.5, 0.7, 0.9],
     },
     'mehxr_60_keV': {
@@ -67,11 +67,11 @@ _DCOLOR = {
     },
     'kappa': {
         'color': 'b',
-        'label': r"$\kappa = \frac{\Delta_{ff}^{RE}}{\Delta_{ff}^{Max}}$",
+        'label': r"$\kappa = \frac{\Delta_{ff}^{RE}}{\Delta_{ff}}$",
     },
     'total_headon': {
         'color': 'r',
-        'label': r"$M_i$",
+        'label': r"$\frac{M_i}{\max(M_i)}$",
     },
 }
 
@@ -262,7 +262,7 @@ def main(
 
                     # check if constant
                     vmean = np.nanmean(data)
-                    if np.allclose(data, vmean, atol=0, rtol=1e-6):
+                    if np.allclose(data, vmean, atol=0, rtol=1e-4):
 
                         ax.text(
                             0.5,
@@ -288,6 +288,7 @@ def main(
                             data,
                             colors=dcolor[kk]['color'],
                             linestyles='-',
+                            linewidths=1,
                             levels=levels,
                             label=kk,
                         )
