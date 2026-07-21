@@ -1,3 +1,4 @@
+import os
 import string
 
 
@@ -37,8 +38,8 @@ _DLEVELS = {
     },
     'cvd_filter': {
         'xi': np.r_[5e-5, 1e-4, 5e-4, 1e-3, 1e-2, 1e-1, 0.5],
-        'kappa': np.r_[20, 50, 80, 90, 99, 99.9]/100,
-        'total_headon': np.r_[0.1, 0.5, 0.9],
+        'kappa': np.r_[20, 50, 80, 99]/100,
+        'total_headon': np.r_[0.5, 0.9],
     },
     'spectro': {
         'xi': np.r_[1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 2e-1, 0.5],
@@ -62,7 +63,7 @@ _DCOLOR = {
     'xi': {
         'color': 'k',
         'label': r'$\xi_{RE} = \frac{\Delta_{ff}^{RE}}{M_i}$',
-        'fmt': lambda vv: f"{vv:2.1e}",
+        'fmt': lambda vv: f"{vv:1.0e}",
     },
     'kappa': {
         'color': 'b',
@@ -82,6 +83,9 @@ _DCOLOR = {
 
 
 def main(
+    # from pre-computed
+    dout=None,
+    # dmix
     dmix=None,
     # d2cross
     d2cross_phi=None,
@@ -98,57 +102,21 @@ def main(
     sigmap=None,
     pnormW=0,
     # plot
-    figsize=(10, 14),
+    figsize=(10, 9.5),
     fontsize=14,
     # save
     path_save=None,
     pfe_save=None,
+    save_dout=None,
     # unused
     **kwdargs,
 ):
-
-    # -----------
-    # inputs
-    # -----------
-
-    if jp_fraction_re is None:
-        jp_fraction_re = _JP_FRAC
-
-    if re is None:
-        re = _RE
-
-    if dmix is None:
-        dmix = _DDMIX[1]
 
     # --------------
     # compute
     # --------------
 
-    dout = {}
-    for ii, rei in enumerate(re):
-        (
-            demiss_integ, dsignal, ddist, dmix,
-            total_headon, diff_RE, diff_max,
-            dang, theta,
-            lresp, ldist,
-        ) = _perfs.main(
-            dmix=dmix,
-            ne_m3=ne_m3,
-            jp_Am2=jp_Am2,
-            d2cross_phi=d2cross_phi,
-            re=rei,
-            jp_fraction_re=jp_fraction_re,
-        )
-
-        dout[rei] = {
-            'ii': ii,
-            'demiss_integ': demiss_integ,
-            'dsignal': dsignal,
-            'ddist': ddist,
-            'total_headon': total_headon,
-            'diff_RE': diff_RE,
-            'diff_max': diff_max,
-        }
+    dout, lresp, ddist, theta, re, dmix, dang = _get_dout(**locals())
 
     # --------------
     # extract
@@ -197,13 +165,13 @@ def main(
     # --------------
 
     dmargin = {
-        'left': 0.08, 'right': 0.90,
-        'bottom': 0.04, 'top': 0.95,
+        'left': 0.08, 'right': 0.88,
+        'bottom': 0.06, 'top': 0.91,
         'wspace': 0.10, 'hspace': 0.10,
     }
 
     fig = plt.figure(figsize=figsize)
-    fig.suptitle(tit, fontsize=fontsize, fontweight='bold')
+    fig.suptitle(tit, x=0.5, y=0.99, fontsize=fontsize, fontweight='bold')
 
     gs = gridspec.GridSpec(ncols=nre, nrows=nresp, **dmargin)
     dax = {}
@@ -250,6 +218,8 @@ def main(
                     fontsize=fontsize,
                     fontweight='bold',
                 )
+            else:
+                ax.tick_params(labelleft=False)
 
             # char
             ax.text(
@@ -296,12 +266,12 @@ def main(
 
                         ax.text(
                             0.5,
-                            0.5 + ik*0.1,
-                            f"<{vmean:2.1e}>",
+                            0.4 + ik*0.15,
+                            f"{vmean:3.2f}",
                             color=dcolor[kk]['color'],
                             ha='center',
                             va='center',
-                            fontsize=fontsize,
+                            fontsize=fontsize-4,
                             fontweight='bold',
                             transform=ax.transAxes,
                         )
@@ -325,7 +295,7 @@ def main(
                             cs,
                             cs.levels,
                             fmt=dcolor[kk].get('fmt'),
-                            fontsize=12,
+                            fontsize=fontsize-4,
                         )
 
                 # add case
@@ -341,10 +311,10 @@ def main(
                 # ------------
                 # decorate
 
+                ax.grid(True)
                 if ie == iresp == 0:
                     ax.set_xlim(0, 2.5)
                     ax.set_ylim(0, 1)
-                    ax.grid(True)
 
                 if ie == len(re) - 1 and iresp == 0:
                     lh = [
@@ -361,6 +331,30 @@ def main(
                         loc='upper right',
                         bbox_to_anchor=(1.5, 1.),
                     )
+
+    # --------------
+    # save dout
+    # --------------
+
+    if save_dout is True:
+        fn = os.path.split(__file__)[-1][1:].replace('.py', '')
+        name = f"{fn}_dout.npz"
+        _PATH_HERE = os.path.dirname(__file__)
+        pfe = os.path.join(_PATH_HERE, name)
+        np.savez(
+            pfe,
+            **{
+                'dout': dout,
+                'lresp': lresp,
+                'ddist': ddist,
+                'theta': theta,
+                're': re,
+                'dmix': dmix,
+                'dang': dang,
+            },
+        )
+        msg = f"Saved dout in:\n\t{pfe}"
+        print(msg)
 
     # --------------
     # save
@@ -380,3 +374,91 @@ def main(
 # #######################################
 #           Subroutine
 # #######################################
+
+
+def _get_dout(
+    dout=None,
+    # cross-section
+    d2cross_phi=None,
+    # dist
+    ne_m3=None,
+    jp_Am2=None,
+    jp_fraction_re=None,
+    # RE
+    re=None,
+    # mix
+    dmix=None,
+    # unused
+    **kwdargs,
+):
+
+    # ---------
+    # compute
+    # ---------
+
+    if dout is None:
+
+        # -----------
+        # inputs
+
+        if jp_fraction_re is None:
+            jp_fraction_re = _JP_FRAC
+
+        if re is None:
+            re = _RE
+
+        if dmix is None:
+            dmix = _DDMIX[1]
+
+        # -----------
+        # dout
+
+        dout = {}
+        for ii, rei in enumerate(re):
+            (
+                demiss_integ, dsignal, ddist, dmix,
+                total_headon, diff_RE, diff_max,
+                dang, theta,
+                lresp, ldist,
+            ) = _perfs.main(
+                dmix=dmix,
+                ne_m3=ne_m3,
+                jp_Am2=jp_Am2,
+                d2cross_phi=d2cross_phi,
+                re=rei,
+                jp_fraction_re=jp_fraction_re,
+            )
+
+            dout[rei] = {
+                'ii': ii,
+                'demiss_integ': demiss_integ,
+                'dsignal': dsignal,
+                'ddist': ddist,
+                'total_headon': total_headon,
+                'diff_RE': diff_RE,
+                'diff_max': diff_max,
+            }
+
+    # ---------
+    # load
+    # ---------
+
+    else:
+        if isinstance(dout, str):
+            dout = {
+                kk: vv.tolist()
+                if isinstance(vv, np.ndarray) and vv.shape == ()
+                else vv
+                for kk, vv in np.load(dout, allow_pickle=True).items()
+            }
+
+        # extract
+        lresp = dout['lresp']
+        ddist = dout['ddist']
+        theta = dout['theta']
+        re = dout['re']
+        dmix = dout['dmix']
+        dang = dout['dang']
+        dout = dout['dout']
+
+    return dout, lresp, ddist, theta, re, dmix, dang
