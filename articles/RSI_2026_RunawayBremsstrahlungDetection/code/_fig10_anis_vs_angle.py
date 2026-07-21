@@ -9,6 +9,7 @@ import datastock as ds
 
 
 from ._fig02_dist_type import _DDIST_PLOT
+from ._perfs import _DANGLES
 from ._fig08_perfs_single import _DCASES
 from ._fig09_perfs_scans import _get_dout
 from ._savefig import main as savefig
@@ -144,7 +145,7 @@ def main(
 
     dmargin = {
         'left': 0.15, 'right': 0.97,
-        'bottom': 0.09, 'top': 0.92,
+        'bottom': 0.09, 'top': 0.94,
         'wspace': 0.10, 'hspace': 0.10,
     }
 
@@ -182,8 +183,8 @@ def main(
 
         # ylabel
         ax.set_ylabel(
-            f"{kresp}\n" + r"$\delta M_i$",
-            fontsize=fontsize,
+            f"{kresp}\n" + r"$\delta M_{i,ff}^{RE} / M_{i,ff}^{RE}$",
+            fontsize=fontsize - 2,
             fontweight='bold',
         )
 
@@ -237,20 +238,34 @@ def main(
                     label=rei,
                 )
 
-                # ------------
-                # decorate
+            # ------------
+            # theta_span
 
-                ax.grid(True)
-                if iresp == 0:
-                    ax.set_xlim(0, 90)
-                    ax.set_xticks(xticks)
-                    ax.set_xticklabels(xlab)
+            kang = dang[kresp]['kang']
+            for kk in ['head-on', 'back']:
+                ax.axvspan(
+                    (np.pi/2 - _DANGLES[kang][kk][0]) * 180/np.pi,
+                    (np.pi/2 - _DANGLES[kang][kk][1]) * 180/np.pi,
+                    facecolor=_DANGLES[kang]['color'],
+                    alpha=_DANGLES[kang]['alpha'],
+                )
 
-                elif iresp == len(lresp) - 1:
-                    ax.legend(
-                        handles=None,
-                        loc='lower right',
-                    )
+            # ------------
+            # decorate
+
+            ax.grid(True)
+            if iresp == 0:
+                ax.set_ylim(0, 1)
+                ax.set_xlim(0, 90)
+                ax.set_xticks(xticks)
+                ax.set_xticklabels(xlab)
+
+            elif iresp == len(lresp) - 1:
+                ax.legend(
+                    handles=None,
+                    loc='lower right',
+                    fontsize=fontsize-4,
+                )
 
     # --------------
     # save
