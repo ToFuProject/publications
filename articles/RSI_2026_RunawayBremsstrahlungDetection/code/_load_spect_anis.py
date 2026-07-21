@@ -42,6 +42,7 @@ _D2CROSS_PHI = 'EH0'
 
 _TE = 1e3 * np.linspace(0.1, 2.5, 25)
 _JP_FRAC = np.linspace(0.1, 0.9, 9)
+# _JP_FRAC = np.linspace(0.01, 0.99, 29)
 # _JP_FRAC = np.linspace(0.025, 0.975, 39)
 _EKIN_MAX_EV = np.r_[100e3, 10e6]
 _PNORMW = np.r_[0.1, 5]
