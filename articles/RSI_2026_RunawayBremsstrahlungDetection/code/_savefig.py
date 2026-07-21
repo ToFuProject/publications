@@ -46,7 +46,8 @@ def main(
 
     if pfe_save is not False:
         if pfe_save in [None, True]:
-            name = f"{os.path.split(file)[-1][1:].replace('.py', '')}.png"
+            fn = os.path.split(file)[-1][1:].replace('.py', '')
+            name = f"{fn}.png"
             if path_save is None:
                 path_save = _PATH_SAVE
             pfe_save = os.path.join(_PATH_SAVE, name)
