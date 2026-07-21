@@ -3,6 +3,7 @@ import copy
 
 import numpy as np
 import scipy.integrate as scpinteg
+import matplotlib.path as mpath
 import astropy.units as asunits
 import tofu as tf
 
@@ -20,6 +21,7 @@ from . import _perfs
 _RE = ['avalanche 10 MeV', 'dreicer']
 _JP_FRAC = 0.9
 _TE = 0.5e3
+_RE = 0.01
 
 
 _FONTSIZE = 14
@@ -64,6 +66,9 @@ def main(
     # -----------
     # inputs
     # -----------
+
+    if res is None:
+        res = _RES
 
     if Te_eV is None:
         Te_eV = _TE
@@ -178,6 +183,11 @@ def main(
         magR = coll.ddata[kmR]['data']
         magZ = coll.ddata[kmZ]['data']
 
+        ksepR = [kk for kk in coll.ddata.keys() if kk.endswith('_sepR')][0]
+        ksepZ = [kk for kk in coll.ddata.keys() if kk.endswith('_sepZ')][0]
+        sepR = coll.ddata[ksepR]['data']
+        sepZ = coll.ddata[ksepZ]['data']
+
         sli = (slice(None),) + (None,)*R.ndim
         ne_coef = np.exp(
             - (R[None, ...] - magR[sli])**2/0.5**2
@@ -188,6 +198,9 @@ def main(
             kt = f"{kmR.split('_')[0]}_t"
             indt = np.argmin(np.abs(coll.ddata[kt]['data'] - t))
             ne_coef = ne_coef[indt, ...]
+            sepR = sepR[indt, ...]
+            sepZ = sepZ[indt, ...]
+            sep = mpath.Path(np.array([sepR, sepZ]).T)
         dne_coef[krays] = ne_coef
 
     # ################
@@ -215,9 +228,6 @@ def main(
 
             khel = 'helicity' if vcase['helicity'] is True else 'nohelicity'
             angles = dangles[krays][khel]['angle']['data']
-            R = dangles[krays][khel]['angle']['data']
-            Z = dangles[krays][khel]['angle']['data']
-            iok = np.isfinite(angles) & np.isfinite(R)
             ref_ang = dangles[krays][khel]['angle']['ref']
             ref = tuple([
                 rr for ii, rr in enumerate(ref_ang) if ii != axis_samp
@@ -234,6 +244,18 @@ def main(
                 if ii != axis_samp
             ])
 
+            # ----------
+            # out of sep
+
+            R = dangles[krays][khel]['R']['data']
+            Z = dangles[krays][khel]['Z']['data']
+            iokRZ = np.isfinite(R)
+            pts = np.array([R[iokRZ], Z[iokRZ]]).T
+            iin = np.zeros(R.shape, dtype=bool)
+            iin[iokRZ] = sep.contains_points(pts)
+            R[~iin] = np.nan
+
+            iok = np.isfinite(angles) & np.isfinite(R)
             length = dangles[krays][khel]['length']['data']
             length[~iok] = np.nan
             ndimd = iang.ndim - length.ndim
@@ -309,13 +331,18 @@ def main(
         # RE
         RE_headon = dsig_los[kcase][krays_max][rei]['RE']['ff']['data']
         RE_back = dsig_los[kcase][krays_min][rei]['RE']['ff']['data']
-        diffRE = RE_headon - RE_back
+        diffRE = RE_headon - RE_back[::-1, :]
 
         # Max
         kd = 'maxwell'
         Max_headon_ff = dsig_los[kcase][krays_max][rei][kd]['ff']['data']
         Max_back_ff = dsig_los[kcase][krays_min][rei][kd]['ff']['data']
-        diffMax = Max_headon_ff - Max_back_ff
+        diffMax = Max_headon_ff - Max_back_ff[::-1, :]
+
+        if np.any(diffMax < 0) or np.any(diffRE < 0):
+            import pdb; pdb.set_trace() # DB
+            diffRE[diffRE < 0] = 0
+            diffMax[diffMax < 0] = 0
 
         Max_headon_tot = (
             dsig_los[kcase][krays_max][rei][kd]['ff']['data']

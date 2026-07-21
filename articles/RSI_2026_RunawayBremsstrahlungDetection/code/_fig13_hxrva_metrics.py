@@ -61,7 +61,7 @@ def main(
     dvmin=None,
     # plot
     dmargin=None,
-    figsize=None,
+    figsize=(5, 7),
     fontsize=None,
     # saving
     pfe_save=None,
@@ -160,20 +160,23 @@ def main(
     dmetrics_plot = {
         0: {
             'key': 'xi',
-            'tit': 'xi',
+            'tit': r'$\xi$',
+            'levels': np.r_[0.1, 0.3, 0.5, 0.7, 0.9],
         },
-        1: {
-            'key': 'kappa',
-            'tit': 'kappa',
-        },
+        # 1: {
+            # 'key': 'kappa',
+            # 'tit': r'$\kappa$',
+            # 'levels': np.r_[0.8, 0.9, 0.99, 0.999],
+        # },
         2: {
             'key': 'meas_RE_diff',
             'tit': r'$\delta \epsilon_{ff}^{RE}$',
+            'levels': 10,
         },
-        3: {
-            'key': 'meas_headon',
-            'tit': r"$\epsilon^{head-on}$",
-        },
+        # 3: {
+            # 'key': 'meas_headon',
+            # 'tit': r"$\epsilon^{head-on}$",
+        # },
     }
 
     # -----------
@@ -199,20 +202,20 @@ def main(
 
     if dmargin is None:
         dmargin = {
-            'left': 0.05, 'right': 0.90,
-            'bottom': 0.10, 'top': 0.93,
-            'wspace': 0.18, 'hspace': 0.20,
+            'left': 0.15, 'right': 0.85,
+            'bottom': 0.08, 'top': 0.87,
+            'wspace': 0.05, 'hspace': 0.05,
         }
         dmargin_cbar = {
-            'left': 0.05, 'right': 0.90,
-            'bottom': 0.05, 'top': 0.10,
-            'wspace': 0.18, 'hspace': 0.20,
+            'left': 0.87, 'right': 0.91,
+            'bottom': 0.05, 'top': 0.87,
+            'wspace': 0.05, 'hspace': 0.05,
         }
 
     fig = plt.figure(figsize=figsize)
 
-    gs = gridspec.GridSpec(ncols=4, nrows=len(re), **dmargin)
-    gs_cbar = gridspec.GridSpec(ncols=4, nrows=1, **dmargin_cbar)
+    gs = gridspec.GridSpec(ncols=len(re), nrows=len(lm), **dmargin)
+    gs_cbar = gridspec.GridSpec(ncols=1, nrows=len(lm), **dmargin_cbar)
     dax = {}
 
     # ----------------------
@@ -229,6 +232,8 @@ def main(
     )
     fig.suptitle(
         tit,
+        x=0.5,
+        y=0.99,
         fontsize=fontsize,
         fontweight='bold',
     )
@@ -245,30 +250,36 @@ def main(
             # axes - image
 
             ax = fig.add_subplot(
-                gs[ire, im],
+                gs[im, ire],
                 aspect='equal',
                 sharex=ax0,
                 sharey=ax0,
             )
-            if ire == 0:
+            if im == 0:
                 ax.set_title(
-                    dmetrics_plot[km]['tit'],
+                    rei,
                     fontsize=fontsize,
                     fontweight='bold',
                 )
-            if ire == len(re) - 1:
+            if im == len(lm) - 1:
                 ax.set_xlabel(
                     r'$\theta_0$ (deg)',
                     fontsize=fontsize,
                     fontweight='bold',
                 )
-            if im == 0:
+            else:
+                ax.tick_params(labelbottom=False)
+
+            if ire == 0:
                 ax.set_ylabel(
-                    f"{rei}\n" + r"$\theta_1$ (deg)",
+                    f"{dmetrics_plot[km]['tit']}\n" + r"$\theta_1$ (deg)",
                     fontsize=fontsize,
                     fontweight='bold',
+                    labelpad=-10,
                 )
                 ax0 = ax
+            else:
+                ax.tick_params(labelleft=False)
 
             ax.text(
                 0.01,
@@ -288,11 +299,11 @@ def main(
 
             if ire == 0:
                 ax = fig.add_subplot(
-                    gs_cbar[0, im],
+                    gs_cbar[im, 0],
                     aspect='auto',
                 )
-                ax.set_title(
-                    str(units),
+                ax.set_ylabel(
+                    str(units) if km == 2 else '',
                     fontsize=fontsize,
                     fontweight='bold',
                 )
@@ -321,15 +332,17 @@ def main(
                 ax = dax[kax]['handle']
 
                 data = dmetrics[rei][dmetrics_plot[km]['key']]['data']
+                iok = np.isfinite(data)
+                data[~iok] = np.nan
 
-                im = ax.contour(
+                im = ax.contourf(
                     angle0,
                     angle1,
                     data.T,
                     cmap=plt.cm.viridis,
                     vmin=dvmin[km],
                     vmax=dvmax[km],
-                    levels=10,
+                    levels=dmetrics_plot[km]['levels'],
                 )
 
                 # colorbar
