@@ -30,3 +30,4 @@ articles/RSI_2026_RunawayBremsstrahlungDetection/inputs/OMP000U_Zoom_inside.png 
 articles/RSI_2026_RunawayBremsstrahlungDetection/figures/fig14_bolo_cad.png filter=lfs diff=lfs merge=lfs -text
 articles/RSI_2026_RunawayBremsstrahlungDetection/inputs/Inversion_HXRVA_dvezinet_20260713-154229.npz filter=lfs diff=lfs merge=lfs -text
 articles/RSI_2026_RunawayBremsstrahlungDetection/figures/fig11_hxrva_cad.png filter=lfs diff=lfs merge=lfs -text
+articles/RSI_2026_RunawayBremsstrahlungDetection/figures/fig06_tokamak.png filter=lfs diff=lfs merge=lfs -text
