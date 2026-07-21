@@ -32,3 +32,4 @@ articles/RSI_2026_RunawayBremsstrahlungDetection/inputs/Inversion_HXRVA_dvezinet
 articles/RSI_2026_RunawayBremsstrahlungDetection/figures/fig11_hxrva_cad.png filter=lfs diff=lfs merge=lfs -text
 articles/RSI_2026_RunawayBremsstrahlungDetection/figures/fig06_tokamak.png filter=lfs diff=lfs merge=lfs -text
 articles/RSI_2026_RunawayBremsstrahlungDetection/figures/fig09_perfs_scans.png filter=lfs diff=lfs merge=lfs -text
+/home/didier/Projects/publications/articles/RSI_2026_RunawayBremsstrahlungDetection/code/fig09_perfs_scans_dout.npz filter=lfs diff=lfs merge=lfs -text
