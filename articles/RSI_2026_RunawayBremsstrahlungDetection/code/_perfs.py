@@ -262,31 +262,30 @@ def main(
                     }
 
     # -----------------------------
+    # Prepare angle integration
+    # -----------------------------
+
+    theta = demiss['theta_ph_vsB']['data']
+    dang = _get_dang(
+        dresp=dresp,
+        theta=theta,
+    )
+    # needed to ensure integration happens on same number of points
+
+    # -----------------------------
     # Integrate over angles
     # -----------------------------
 
-    dang = {}
     dsignal = copy.deepcopy(demiss_integ)
-    theta = demiss['theta_ph_vsB']['data']
     for kresp, vresp in dresp.items():
-
-        # get relevant angle
-        kang = [
-            kk for kk, vv in _DANGLES.items()
-            if kresp in vv['resp']
-        ][0]
-        dang[kresp] = kang
 
         # integrate each direction
         for idir, kdir in enumerate(['head-on', 'back']):
 
-            # iang
-            iang = (
-                (theta >= _DANGLES[kang][kdir][0])
-                & (theta <= _DANGLES[kang][kdir][1])
-            )
-
             # solid angle assuming cone
+            kang = dang[kresp]['kang']
+
+            # analytical solid angle - assume cone
             dcos = np.diff(np.cos(_DANGLES[kang][kdir])[::-1])[0]
             sang = 2*np.pi * dcos
 
@@ -294,6 +293,7 @@ def main(
             for kdist, vdist in demiss_integ[kresp].items():
 
                 # loop on emiss type
+                iang = dang[kresp]['iang'][kdir]
                 for kemiss, vemiss in vdist.items():
 
                     ndim = vemiss['data'].ndim
@@ -375,6 +375,9 @@ def main(
             for kresp in lresp
         ])
     )
+    if np.any(diff_RE < 0.):
+        msg = "Wrong diff_RE"
+        raise Exception(msg)
 
     # diff_max
     diff_max = (
@@ -387,6 +390,9 @@ def main(
             for kresp in lresp
         ])
     )
+    if np.any(diff_max < 0.):
+        msg = "Wrong diff_max"
+        raise Exception(msg)
 
     # sanity check
     error = (diff_RE + diff_max) - (total_headon - total_back)
@@ -410,3 +416,86 @@ def main(
         dang, theta,
         lresp, ldist,
     )
+
+
+# ############################################
+# ############################################
+#               Subroutine = dang
+# ############################################
+
+
+def _get_dang(
+    dresp=None,
+    theta=None,
+):
+
+    dang = {kresp: {} for kresp in dresp.keys()}
+    for kresp, vresp in dresp.items():
+
+        # get relevant angle
+        kang = [
+            kk for kk, vv in _DANGLES.items()
+            if kresp in vv['resp']
+        ][0]
+        dang[kresp] = kang
+
+        # iang - head-on
+        iang_headon = (
+            (theta >= _DANGLES[kang]['head-on'][0])
+            & (theta <= _DANGLES[kang]['head-on'][1])
+        )
+
+        # iang - back
+        iang_back = (
+            (theta >= _DANGLES[kang]['back'][0])
+            & (theta <= _DANGLES[kang]['back'][1])
+        )
+
+        # ----------------
+        # sanity check - 1
+
+        nheadon = iang_headon.sum()
+        nback = iang_back.sum()
+        assert nheadon >= 3
+        assert nback >= 3
+
+        # sanity check
+        if np.abs(nheadon - nback) > 1:
+            msg = "Issue with angle sampling for integration !"
+            raise Exception(msg)
+        elif nheadon != nback:
+            theta_headon = np.abs(np.pi/2 - theta[iang_headon])
+            theta_back = np.abs(np.pi/2. - theta[iang_back])
+            if nheadon > nback:
+                diff0 = np.sum(theta_headon[:-1] - theta_back)
+                diff1 = np.sum(theta_headon[1:] - theta_back)
+                if diff0 > diff1:
+                    iang_headon[iang_headon.nonzero()[0][0]] = False
+                else:
+                    iang_headon[iang_headon.nonzero()[0][-1]] = False
+            else:
+                diff0 = np.sum(theta_headon - theta_back[:-1])
+                diff1 = np.sum(theta_headon - theta_back[1:])
+                if diff0 > diff1:
+                    iang_back[iang_back.nonzero()[0][0]] = False
+                else:
+                    iang_back[iang_back.nonzero()[0][-1]] = False
+
+        assert iang_headon.sum() == iang_back.sum()
+
+        # --------
+        # store
+
+        dang[kresp] = {
+            'kang': kang,
+            'iang': {
+                'head-on': iang_headon,
+                'back': iang_back,
+            },
+            'theta': {
+                'head-on': theta[iang_headon],
+                'back': theta[iang_back],
+            },
+        }
+
+    return dang
