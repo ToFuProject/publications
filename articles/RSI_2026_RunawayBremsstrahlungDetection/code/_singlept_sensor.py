@@ -22,6 +22,7 @@ _RE = ['avalanche 10 MeV', 'dreicer']
 _JP_FRAC = 0.9
 _TE = 0.5e3
 _RE = 0.01
+_RES = 0.01
 
 
 _FONTSIZE = 14
