@@ -8,11 +8,9 @@ import matplotlib.gridspec as gridspec
 import datastock as ds
 
 
-from ._load_spect_anis import _JP_FRAC
 from ._fig02_dist_type import _DDIST_PLOT
-from ._fig05_emiss import _DDMIX
-from . import _perfs
 from ._fig08_perfs_single import _DCASES
+from ._fig09_perfs_scans import _get_dout
 from ._savefig import main as savefig
 
 
@@ -32,6 +30,9 @@ _RE = ['dreicer', 'avalanche 100 keV', 'avalanche 10 MeV']
 
 
 def main(
+    # pre-computed
+    dout=None,
+    # dmix
     dmix=None,
     # d2cross
     d2cross_phi=None,
@@ -57,48 +58,11 @@ def main(
     **kwdargs,
 ):
 
-    # -----------
-    # inputs
-    # -----------
-
-    if jp_fraction_re is None:
-        jp_fraction_re = _JP_FRAC
-
-    if re is None:
-        re = _RE
-
-    if dmix is None:
-        dmix = _DDMIX[1]
-
     # --------------
     # compute
     # --------------
 
-    dout = {}
-    for ii, rei in enumerate(re):
-        (
-            demiss_integ, dsignal, ddist, dmix,
-            total_headon, diff_RE, diff_max,
-            dang, theta,
-            lresp, ldist,
-        ) = _perfs.main(
-            dmix=dmix,
-            ne_m3=ne_m3,
-            jp_Am2=jp_Am2,
-            d2cross_phi=d2cross_phi,
-            re=rei,
-            jp_fraction_re=jp_fraction_re,
-        )
-
-        dout[rei] = {
-            'ii': ii,
-            'demiss_integ': demiss_integ,
-            'dsignal': dsignal,
-            'ddist': ddist,
-            'total_headon': total_headon,
-            'diff_RE': diff_RE,
-            'diff_max': diff_max,
-        }
+    dout, lresp, ddist, theta, re, dmix, dang = _get_dout(**locals())
 
     # --------------
     # extract
@@ -112,9 +76,10 @@ def main(
     ind_back = np.nonzero(ind_back)[0]
     delta_theta = theta[ind_back] - np.pi/2.
 
-    xticks = np.r_[0, 15, 30, 45, 60, 75, 90]
+    # xticks = np.r_[0, 15, 30, 45, 60, 75, 90]
+    xticks = np.r_[0, 10, 20, 30, 40, 50, 60, 70, 80, 90]
     xlab = [
-        "0" if ix == 0
+        "90" if ix == 0
         else f"{90 - xx}\n- {90 + xx}"
         for ix, xx in enumerate(xticks)
     ]
@@ -125,19 +90,29 @@ def main(
         for kresp in lresp:
             data = dout[rei]['demiss_integ'][kresp]['RE']['ff']['data']
             delta = data[:, :, ind_headon] - data[:, :, ind_back]
+            delta_rel = delta / data[:, :, ind_headon]
+
+            units = dout[rei]['demiss_integ'][kresp]['RE']['ff']['units']
             delta_emiss[kresp][rei] = {
-                'data': delta,
-                'units': dout[rei]['demiss_integ'][kresp]['RE']['ff']['units']
+                'delta': {
+                    'data': delta,
+                    'units': units,
+                },
+                'delta_rel': {
+                    'data': delta_rel,
+                    'units': '',
+                },
             }
 
     # -------------
     # prepare full
     # -------------
 
-    shape_plasma = delta_emiss[kresp][rei]['data'].shape[:-1]
+    shape_plasma = delta_emiss[kresp][rei]['delta_rel']['data'].shape[:-1]
     nan = np.full(shape_plasma + (1,), np.nan)
-    delta_theta_full = np.full(shape_plasma + (delta_theta.size + 1), np.nan)
-    delta_theta_full[:, :, :-1] = delta_theta[None, None, :].ravel()
+    delta_theta_full = np.full(shape_plasma + (delta_theta.size + 1,), np.nan)
+    delta_theta_full[:, :, :-1] = delta_theta[None, None, :]
+    delta_theta_full = delta_theta_full.ravel()
 
     # --------------
     # prepare Te, F cases
@@ -168,13 +143,13 @@ def main(
     # --------------
 
     dmargin = {
-        'left': 0.08, 'right': 0.90,
-        'bottom': 0.04, 'top': 0.95,
+        'left': 0.15, 'right': 0.97,
+        'bottom': 0.09, 'top': 0.92,
         'wspace': 0.10, 'hspace': 0.10,
     }
 
     fig = plt.figure(figsize=figsize)
-    fig.suptitle(tit, fontsize=fontsize, fontweight='bold')
+    fig.suptitle(tit, x=0.5, y=0.999, fontsize=fontsize, fontweight='bold')
 
     gs = gridspec.GridSpec(ncols=1, nrows=nresp, **dmargin)
     dax = {}
@@ -202,6 +177,8 @@ def main(
                 fontsize=fontsize,
                 fontweight='bold',
             )
+        else:
+            ax.tick_params(labelbottom=False)
 
         # ylabel
         ax.set_ylabel(
@@ -243,14 +220,18 @@ def main(
             for ie, rei in enumerate(re):
 
                 # data (Te, jp_frac, dtheta)
-                data = delta_emiss[kresp][rei]['data']
-                data_norm = data / np.nanmax(data, axis=-1)[:, :, None]
-                data_norm = np.concatenate((data_norm, nan), axis=-1).ravel()
+                drel = delta_emiss[kresp][rei]['delta_rel']['data']
+                drel = np.concatenate((drel, nan), axis=-1).ravel()
+
+                # dabs
+                dabs = delta_emiss[kresp][rei]['delta_rel']['data']
+                dabs_norm = dabs / np.nanmax(dabs, axis=-1)[:, :, None]
+                dabs_norm = np.concatenate((dabs_norm, nan), axis=-1).ravel()
 
                 # concatenate
                 ax.plot(
                     delta_theta_full * 180/np.pi,
-                    data_norm,
+                    drel,
                     color=_DDIST_PLOT[rei]['color'],
                     linestyle='-',
                     label=rei,
@@ -259,17 +240,16 @@ def main(
                 # ------------
                 # decorate
 
+                ax.grid(True)
                 if iresp == 0:
                     ax.set_xlim(0, 90)
                     ax.set_xticks(xticks)
                     ax.set_xticklabels(xlab)
-                    ax.grid(True)
 
                 elif iresp == len(lresp) - 1:
                     ax.legend(
                         handles=None,
-                        loc='upper right',
-                        bbox_to_anchor=(1.5, 1.),
+                        loc='lower right',
                     )
 
     # --------------
