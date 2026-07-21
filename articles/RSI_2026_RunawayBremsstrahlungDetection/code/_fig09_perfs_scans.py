@@ -37,7 +37,7 @@ _DLEVELS = {
         'total_headon': np.r_[0.1, 0.3, 0.5, 0.9],
     },
     'cvd_filter': {
-        'xi': np.r_[5e-5, 1e-4, 5e-4, 1e-3, 1e-2, 1e-1, 0.5],
+        'xi': np.r_[5e-5, 1e-4, 5e-4, 1e-3, 1e-2, 0.5],
         'kappa': np.r_[20, 50, 80, 99]/100,
         'total_headon': np.r_[0.5, 0.9],
     },
