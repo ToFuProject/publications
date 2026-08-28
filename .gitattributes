@@ -39,3 +39,4 @@ articles/RSI_2026_RunawayBremsstrahlungDetection/figures/fig05_emiss.png filter=
 articles/RSI_2026_RunawayBremsstrahlungDetection/figures/fig13_hxrva_metrics.png filter=lfs diff=lfs merge=lfs -text
 *.png filter=lfs diff=lfs merge=lfs -text
 *.npz filter=lfs diff=lfs merge=lfs -text
+articles/RSI_2026_RunawayBremsstrahlungDetection/inputs/d2cross_Ee01eV-100MeV-80log_Eph1eV-100MeV-81log_ntheta61_EH_mpmath.npz filter=lfs diff=lfs merge=lfs -text
