@@ -1,0 +1,5 @@
+figures/fig01_cross.png filter=lfs diff=lfs merge=lfs -text
+figures/fig02_dist.png filter=lfs diff=lfs merge=lfs -text
+figures/fig04_bremsstrahlung.png filter=lfs diff=lfs merge=lfs -text
+figures/fig05_tokamak.png filter=lfs diff=lfs merge=lfs -text
+figures/fig06_responsivities.png filter=lfs diff=lfs merge=lfs -text
